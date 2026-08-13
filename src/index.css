@@ -1,0 +1,50 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Fraunces", serif;
+  --font-body: "Work Sans", sans-serif;
+
+  --color-ivory: #FBF6EF;
+  --color-maroon: #7A2048;
+  --color-maroon-dark: #591633;
+  --color-teal: #174A48;
+  --color-marigold: #E8A33D;
+  --color-marigold-light: #F3C877;
+  --color-ink: #241412;
+}
+
+body {
+  background-color: var(--color-ivory);
+  color: var(--color-ink);
+  font-family: var(--font-body);
+}
+
+.font-display {
+  font-family: var(--font-display);
+}
+
+/* Bandhani dot motif — signature texture, echoes the tie-dye dots on real bandhani/mirror-work fabric */
+.bandhani-dots {
+  background-image: radial-gradient(circle, var(--color-marigold) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+
+.bandhani-dots-teal {
+  background-image: radial-gradient(circle, var(--color-teal) 1.5px, transparent 1.5px);
+  background-size: 16px 16px;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-badge {
+  background: linear-gradient(90deg, var(--color-marigold-light) 25%, var(--color-marigold) 50%, var(--color-marigold-light) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 2.5s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shimmer-badge { animation: none; }
+}
