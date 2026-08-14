@@ -1,25 +1,35 @@
 import Razorpay from 'razorpay'
 import { createClient } from '@supabase/supabase-js'
-import { calcShipping } from '../src/lib/shipping.js'
 import { calcShipping } from './_shipping.js'
 
-// Server-only client — uses the service role key, which bypasses RLS.
-// This key must NEVER be exposed to the browser (it lives only in Vercel env vars).
-const supabaseAdmin = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_ROLE_KEY
-)
+function getSupabaseAdmin() {
+  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!url || !key) {
+    throw new Error('Supabase environment variables are missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY).')
+  }
+  return createClient(url, key)
+}
 
-const razorpay = new Razorpay({
-  key_id: process.env.RAZORPAY_KEY_ID,
-  key_secret: process.env.RAZORPAY_KEY_SECRET,
-})
+function getRazorpay() {
+  const key_id = process.env.RAZORPAY_KEY_ID || process.env.VITE_RAZORPAY_KEY_ID
+  const key_secret = process.env.RAZORPAY_KEY_SECRET
+  if (!key_id || !key_secret) {
+    throw new Error('Razorpay environment variables are missing (RAZORPAY_KEY_ID or RAZORPAY_KEY_SECRET).')
+  }
+  return new Razorpay({ key_id, key_secret })
+}
 
 export default async function handler(req, res) {
-  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' })
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' })
+  }
 
   try {
-    const { customer, items } = req.body
+    const supabaseAdmin = getSupabaseAdmin()
+    const razorpay = getRazorpay()
+
+    const { customer, items } = req.body || {}
 
     if (!customer?.name || !customer?.phone || !customer?.address || !customer?.city || !customer?.pincode) {
       return res.status(400).json({ error: 'Missing customer details.' })
@@ -28,9 +38,8 @@ export default async function handler(req, res) {
       return res.status(400).json({ error: 'Cart is empty.' })
     }
 
-    // Recompute the total from the DATABASE price, not whatever the browser sent —
-    // this is what stops someone from editing the price in devtools before paying.
-    let total = 0
+    // Recompute the total from the DATABASE price, not whatever the browser sent
+    let subtotal = 0
     const verifiedItems = []
     for (const item of items) {
       const { data: product, error } = await supabaseAdmin
@@ -39,28 +48,26 @@ export default async function handler(req, res) {
         .eq('id', item.productId)
         .single()
 
-      if (error || !product) return res.status(400).json({ error: `Product not found: ${item.name}` })
+      if (error || !product) {
+        return res.status(400).json({ error: `Product not found: ${item.name || item.productId}` })
+      }
       if (product.stock < item.qty) {
         return res.status(400).json({ error: `Only ${product.stock} left of ${product.name} — please update your cart.` })
       }
 
-      total += product.price * item.qty
+      subtotal += Number(product.price) * item.qty
       verifiedItems.push({
         productId: product.id,
         name: product.name,
         price: product.price,
-        size: item.size,
-        color: item.color,
+        size: item.size || '',
+        color: item.color || '',
         qty: item.qty,
       })
     }
 
-    const shippingFee = calcShipping(total)
-    total += shippingFee
-
-    // Add shipping the same way the checkout page displays it — server-side,
-    // so the amount actually charged always matches what the customer saw.
-    total += calcShipping(total)
+    const shippingFee = calcShipping(subtotal)
+    const total = subtotal + shippingFee
 
     // Create the order row first, in "pending" state
     const { data: order, error: orderError } = await supabaseAdmin
@@ -74,14 +81,16 @@ export default async function handler(req, res) {
         pincode: customer.pincode,
         items: verifiedItems,
         total,
-        shipping_fee: shippingFee,
         payment_status: 'pending',
         order_status: 'placed',
       })
       .select()
       .single()
 
-    if (orderError) throw orderError
+    if (orderError) {
+      console.error('Order creation error:', orderError)
+      return res.status(500).json({ error: orderError.message || 'Failed to create order record.' })
+    }
 
     // Now create the actual Razorpay order (amount is in paise)
     const amountInPaise = Math.round(total * 100)
@@ -96,13 +105,13 @@ export default async function handler(req, res) {
       .update({ razorpay_order_id: razorpayOrder.id })
       .eq('id', order.id)
 
-    res.status(200).json({
+    return res.status(200).json({
       razorpayOrderId: razorpayOrder.id,
       amount: amountInPaise,
       internalOrderId: order.id,
     })
   } catch (err) {
-    console.error(err)
-    res.status(500).json({ error: 'Could not start payment. Please try again.' })
+    console.error('Error in create-razorpay-order:', err)
+    return res.status(500).json({ error: err.message || 'Internal Server Error' })
   }
 }
