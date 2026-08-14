@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useCart } from '../lib/CartContext'
+import { calcShipping } from '../lib/shipping'
 
 function loadRazorpayScript() {
   return new Promise((resolve) => {
@@ -16,6 +17,8 @@ function loadRazorpayScript() {
 export default function Checkout() {
   const { items, totalPrice, clearCart } = useCart()
   const navigate = useNavigate()
+  const shipping = calcShipping(totalPrice)
+  const grandTotal = totalPrice + shipping
 
   const [form, setForm] = useState({
     name: '', phone: '', email: '', address: '', city: '', pincode: '',
@@ -152,9 +155,19 @@ export default function Checkout() {
 
         {error && <p className="text-sm text-red-700 bg-red-50 border border-red-200 rounded-md p-3">{error}</p>}
 
-        <div className="flex items-center justify-between pt-2">
-          <span className="text-ink/70">Total</span>
-          <span className="font-display text-2xl text-maroon">₹{totalPrice.toLocaleString('en-IN')}</span>
+        <div className="space-y-1.5 pt-2 border-t border-maroon/10">
+          <div className="flex items-center justify-between text-sm text-ink/60">
+            <span>Subtotal</span>
+            <span>₹{totalPrice.toLocaleString('en-IN')}</span>
+          </div>
+          <div className="flex items-center justify-between text-sm text-ink/60">
+            <span>Shipping</span>
+            <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
+          </div>
+          <div className="flex items-center justify-between pt-1">
+            <span className="text-ink/70">Total</span>
+            <span className="font-display text-2xl text-maroon">₹{grandTotal.toLocaleString('en-IN')}</span>
+          </div>
         </div>
 
         <button

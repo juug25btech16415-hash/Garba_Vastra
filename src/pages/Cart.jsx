@@ -1,9 +1,11 @@
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../lib/CartContext'
+import { SHIPPING_FEE, FREE_SHIPPING_THRESHOLD, calcShipping } from '../lib/shipping'
 
 export default function Cart() {
   const { items, updateQty, removeItem, totalPrice } = useCart()
   const navigate = useNavigate()
+  const shipping = calcShipping(totalPrice)
 
   if (items.length === 0) {
     return (
@@ -60,9 +62,26 @@ export default function Cart() {
         ))}
       </div>
 
-      <div className="mt-8 flex items-center justify-between border-t border-maroon/10 pt-6">
-        <span className="text-ink/70">Subtotal</span>
-        <span className="font-display text-2xl text-maroon">₹{totalPrice.toLocaleString('en-IN')}</span>
+      <div className="mt-8 border-t border-maroon/10 pt-6 space-y-2">
+        <div className="flex items-center justify-between text-sm text-ink/70">
+          <span>Subtotal</span>
+          <span>₹{totalPrice.toLocaleString('en-IN')}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm text-ink/70">
+          <span>Shipping</span>
+          <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
+        </div>
+        {shipping > 0 && (
+          <p className="text-xs text-ink/45">
+            Add ₹{(FREE_SHIPPING_THRESHOLD - totalPrice).toLocaleString('en-IN')} more for free shipping
+          </p>
+        )}
+        <div className="flex items-center justify-between pt-2 border-t border-maroon/10">
+          <span className="text-ink/70">Total</span>
+          <span className="font-display text-2xl text-maroon">
+            ₹{(totalPrice + shipping).toLocaleString('en-IN')}
+          </span>
+        </div>
       </div>
 
       <button

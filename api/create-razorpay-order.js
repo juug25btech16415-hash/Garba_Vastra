@@ -1,5 +1,7 @@
 import Razorpay from 'razorpay'
 import { createClient } from '@supabase/supabase-js'
+import { calcShipping } from '../src/lib/shipping.js'
+import { calcShipping } from './_shipping.js'
 
 // Server-only client — uses the service role key, which bypasses RLS.
 // This key must NEVER be exposed to the browser (it lives only in Vercel env vars).
@@ -53,6 +55,13 @@ export default async function handler(req, res) {
       })
     }
 
+    const shippingFee = calcShipping(total)
+    total += shippingFee
+
+    // Add shipping the same way the checkout page displays it — server-side,
+    // so the amount actually charged always matches what the customer saw.
+    total += calcShipping(total)
+
     // Create the order row first, in "pending" state
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
@@ -65,6 +74,7 @@ export default async function handler(req, res) {
         pincode: customer.pincode,
         items: verifiedItems,
         total,
+        shipping_fee: shippingFee,
         payment_status: 'pending',
         order_status: 'placed',
       })

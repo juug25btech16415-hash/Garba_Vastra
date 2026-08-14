@@ -1,9 +1,12 @@
 import { Link } from 'react-router-dom'
+import { useWishlist } from '../lib/WishlistContext'
 
 export default function ProductCard({ product }) {
   const stock = product.stock ?? 0
   const isLow = stock > 0 && stock <= 5
   const isOut = stock <= 0
+  const { isWishlisted, toggle } = useWishlist()
+  const loved = isWishlisted(product.id)
 
   return (
     <Link
@@ -16,6 +19,17 @@ export default function ProductCard({ product }) {
           alt={product.name}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
+        <button
+          onClick={(e) => {
+            e.preventDefault()
+            e.stopPropagation()
+            toggle(product.id)
+          }}
+          aria-label="Toggle wishlist"
+          className="absolute top-3 right-3 w-8 h-8 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform"
+        >
+          <span className={loved ? 'text-maroon' : 'text-ink/30'}>{loved ? '♥' : '♡'}</span>
+        </button>
         {isOut && (
           <div className="absolute inset-0 bg-ink/50 flex items-center justify-center">
             <span className="text-ivory font-display text-lg tracking-wide">Sold out</span>
