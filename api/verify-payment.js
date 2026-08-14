@@ -1,36 +1,62 @@
 import crypto from 'crypto'
 import { createClient } from '@supabase/supabase-js'
 
-function getSupabaseAdmin() {
-  const url = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-  if (!url || !key) {
-    throw new Error('Supabase environment variables are missing (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY).')
-  }
-  return createClient(url, key)
-}
-
 export default async function handler(req, res) {
+  // CORS Headers
+  res.setHeader('Access-Control-Allow-Credentials', 'true')
+  res.setHeader('Access-Control-Allow-Origin', '*')
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  )
+
+  if (req.method === 'OPTIONS') {
+    return res.status(200).end()
+  }
+
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method not allowed' })
   }
 
   try {
-    const supabaseAdmin = getSupabaseAdmin()
-    const secret = process.env.RAZORPAY_KEY_SECRET
-    if (!secret) {
-      throw new Error('RAZORPAY_KEY_SECRET environment variable is missing.')
+    const supabaseUrl = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET
+
+    if (!supabaseUrl || !supabaseKey) {
+      return res.status(500).json({
+        success: false,
+        error: 'Missing Supabase credentials (SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY) in Vercel environment variables.'
+      })
+    }
+    if (!razorpayKeySecret) {
+      return res.status(500).json({
+        success: false,
+        error: 'Missing Razorpay key secret (RAZORPAY_KEY_SECRET) in Vercel environment variables.'
+      })
     }
 
-    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, internalOrderId } = req.body || {}
+    const supabaseAdmin = createClient(supabaseUrl, supabaseKey)
+
+    let body = req.body
+    if (typeof body === 'string') {
+      try {
+        body = JSON.parse(body)
+      } catch {
+        // use as-is
+      }
+    }
+
+    const { razorpay_order_id, razorpay_payment_id, razorpay_signature, internalOrderId } = body || {}
 
     if (!razorpay_order_id || !razorpay_payment_id || !razorpay_signature || !internalOrderId) {
       return res.status(400).json({ success: false, error: 'Missing payment verification parameters.' })
     }
 
-    // Verify the payment is genuinely from Razorpay and wasn't tampered with
+    // Verify signature
     const expectedSignature = crypto
-      .createHmac('sha256', secret)
+      .createHmac('sha256', razorpayKeySecret)
       .update(`${razorpay_order_id}|${razorpay_payment_id}`)
       .digest('hex')
 
@@ -49,7 +75,7 @@ export default async function handler(req, res) {
       return res.status(404).json({ success: false, error: 'Order not found.' })
     }
 
-    // Reduce stock for each item
+    // Decrement stock
     if (Array.isArray(order.items)) {
       for (const item of order.items) {
         const { error: stockError } = await supabaseAdmin.rpc('decrement_stock', {
