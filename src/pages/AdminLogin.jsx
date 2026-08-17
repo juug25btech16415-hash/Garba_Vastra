@@ -12,14 +12,33 @@ export default function AdminLogin() {
   async function handleLogin(e) {
     e.preventDefault()
     setError('')
-    setLoading(true)
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    setLoading(false)
-    if (error) {
-      setError('Wrong email or password.')
+
+    if (!email || !password) {
+      setError('Enter both email and password.')
       return
     }
-    navigate('/admin')
+
+    setLoading(true)
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+
+      if (error) {
+        // Surface the real reason — e.g. "Invalid login credentials",
+        // "Email not confirmed", or a network/env error — instead of
+        // hiding it behind a generic message.
+        setError(error.message)
+        return
+      }
+      if (!data?.session) {
+        setError('Login did not return a session. Please try again.')
+        return
+      }
+      navigate('/admin')
+    } catch (err) {
+      setError('Could not reach the server: ' + err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   return (

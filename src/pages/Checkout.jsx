@@ -58,13 +58,8 @@ export default function Checkout() {
           items,
         }),
       })
-      let orderData
-      try {
-        orderData = await orderRes.json()
-      } catch {
-        throw new Error(`Server returned error status ${orderRes.status}. Please try again or check backend configuration.`)
-      }
-      if (!orderRes.ok) throw new Error(orderData?.error || 'Could not start payment.')
+      const orderData = await orderRes.json()
+      if (!orderRes.ok) throw new Error(orderData.error || 'Could not start payment.')
 
       const rzp = new window.Razorpay({
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
@@ -87,20 +82,12 @@ export default function Checkout() {
               internalOrderId: orderData.internalOrderId,
             }),
           })
-          let verifyData
-          try {
-            verifyData = await verifyRes.json()
-          } catch {
-            verifyData = null
-          }
-          if (verifyRes.ok && verifyData?.success) {
+          const verifyData = await verifyRes.json()
+          if (verifyRes.ok && verifyData.success) {
             clearCart()
             navigate(`/order-confirmed/${orderData.internalOrderId}`)
           } else {
-            setError(
-              verifyData?.error ||
-              'Payment verification failed. If money was deducted, it will be refunded — contact us with your payment ID: ' + response.razorpay_payment_id
-            )
+            setError('Payment verification failed. If money was deducted, it will be refunded — contact us with your payment ID: ' + response.razorpay_payment_id)
           }
         },
         modal: {
