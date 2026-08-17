@@ -12,8 +12,8 @@ export default function Navbar() {
         <Link to="/" className="flex items-center">
           <img
             src="/main-logo.png"
-            alt="Garba Vastra Logo"
-            className="h-10 md:h-12 w-auto object-contain"
+            alt="Garba Vastra"
+            className="h-10 md:h-14 w-auto object-contain"
           />
         </Link>
 

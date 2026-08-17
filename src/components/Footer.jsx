@@ -5,7 +5,7 @@ export default function Footer() {
         <img
           src="/main-logo.png"
           alt="Garba Vastra"
-          className="h-8 w-auto grayscale opacity-75 hover:grayscale-0 transition"
+          className="h-8 md:h-10 w-auto object-contain grayscale opacity-80 hover:grayscale-0 transition-all"
         />
         <p>Handpicked chaniya cholis, made for the raas.</p>
       </div>
