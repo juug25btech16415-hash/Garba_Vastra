@@ -7,8 +7,14 @@ export default function Footer() {
           alt="Garba Vastra"
           className="h-12 md:h-14 w-auto object-contain grayscale opacity-80 hover:grayscale-0 transition-all"
         />
+        
         <p>Contact for any queries: +91 9712029713</p>
-        <p>Handpicked chaniya cholis, made for the raas.</p>
+        
+        <div className="text-center sm:text-right flex flex-col gap-1">
+          <p>Handpicked chaniya cholis, made for the raas.</p>
+          <p>Made in Gujarat, India</p>
+          <p>From our house to yours</p>
+        </div>
       </div>
     </footer>
   )
