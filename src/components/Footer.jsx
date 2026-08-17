@@ -7,7 +7,8 @@ export default function Footer() {
           alt="Garba Vastra"
           className="h-12 md:h-14 w-auto object-contain grayscale opacity-80 hover:grayscale-0 transition-all"
         />
-        
+         
+        <div className="text-center sm:text-right flex flex-col gap-1">
         <p>Contact for any queries: +91 9712029713</p>
         <p>Email: vritika110@gmal.com</p>
         
