@@ -48,7 +48,7 @@ export default function ProductDetail() {
   function handleAdd() {
     addItem(product, size, color, 1)
     setAdded(true)
-    setTimeout(() => setAdded(false), 1800)
+    navigate('/cart')
   }
 
   return (

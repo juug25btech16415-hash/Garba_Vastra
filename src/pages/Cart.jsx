@@ -21,6 +21,14 @@ export default function Cart() {
 
   return (
     <div className="max-w-3xl mx-auto px-5 py-12">
+      <Link
+        to="/"
+        className="text-maroon hover:text-maroon/80 flex items-center gap-2 font-medium mb-6 transition-colors"
+      >
+        <span>←</span>
+        <span>Back to Shop</span>
+      </Link>
+
       <h1 className="font-display text-3xl text-maroon mb-8">Your cart</h1>
 
       <div className="divide-y divide-maroon/10">
