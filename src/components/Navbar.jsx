@@ -9,11 +9,12 @@ export default function Navbar() {
   return (
     <header className="sticky top-0 z-40 bg-ivory/95 backdrop-blur border-b border-maroon/10">
       <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2 group">
-          <span className="w-2.5 h-2.5 rounded-full bg-marigold shimmer-badge" />
-          <span className="font-display text-2xl tracking-tight text-maroon group-hover:text-maroon-dark transition-colors">
-            Garba Vastra
-          </span>
+        <Link to="/" className="flex items-center">
+          <img
+            src="/main-logo.png"
+            alt="Garba Vastra"
+            className="h-12 md:h-20 w-auto object-contain"
+          />
         </Link>
 
         <nav className="flex items-center gap-6 text-sm font-medium text-ink/80">
