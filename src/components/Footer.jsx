@@ -9,6 +9,7 @@ export default function Footer() {
         />
         
         <p>Contact for any queries: +91 9712029713</p>
+        <p>Email: vritika110@gmal.com</p>
         
         <div className="text-center sm:text-right flex flex-col gap-1">
           <p>Handpicked chaniya cholis, made for the raas.</p>
