@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../lib/CartContext'
 import { useWishlist } from '../lib/WishlistContext'
+import mainLogo from '../assets/main-logo.png'
 
 export default function Navbar() {
   const { totalQty } = useCart()
@@ -11,7 +12,7 @@ export default function Navbar() {
       <div className="max-w-6xl mx-auto px-5 py-4 flex items-center justify-between">
         <Link to="/" className="flex items-center">
           <img
-            src="/main-logo.png"
+            src={mainLogo}
             alt="Garba Vastra"
             className="h-12 md:h-20 w-auto object-contain"
           />
