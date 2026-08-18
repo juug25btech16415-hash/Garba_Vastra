@@ -1,10 +1,12 @@
 import { Link } from 'react-router-dom'
 import { useCart } from '../lib/CartContext'
 import { useWishlist } from '../lib/WishlistContext'
+import { useAuth } from '../lib/AuthContext'
 
 export default function Navbar() {
   const { totalQty } = useCart()
   const { ids } = useWishlist()
+  const { user } = useAuth()
 
   return (
     <header className="sticky top-0 z-40 bg-ivory/95 backdrop-blur border-b border-maroon/10">
@@ -40,6 +42,19 @@ export default function Navbar() {
               </span>
             )}
           </Link>
+          {user && (
+            <div
+              className="flex items-center gap-1.5 pl-2 border-l border-maroon/15 text-xs text-maroon font-semibold"
+              title={user.email}
+            >
+              <div className="w-6 h-6 rounded-full bg-maroon/10 text-maroon flex items-center justify-center text-xs uppercase font-bold">
+                {user.email ? user.email.charAt(0) : 'U'}
+              </div>
+              <span className="hidden sm:inline-block max-w-[100px] truncate">
+                {user.user_metadata?.name || user.email?.split('@')[0]}
+              </span>
+            </div>
+          )}
         </nav>
       </div>
     </header>
