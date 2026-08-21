@@ -1,4 +1,5 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { useSearchParams } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 const PROGRESS_STAGES = [
@@ -17,22 +18,56 @@ function getStageIndex(currentStatus = '') {
       return i
     }
   }
-  return 1 // Default to active progress if in transit/unrecognized
+  return 1
+}
+
+function formatTimelineDate(dateStr) {
+  if (!dateStr) return 'Recent'
+  try {
+    const formattedStr = typeof dateStr === 'string' ? dateStr.replace(' ', 'T') : dateStr
+    const parsedDate = new Date(formattedStr)
+    if (isNaN(parsedDate.getTime())) {
+      return String(dateStr)
+    }
+    return parsedDate.toLocaleString('en-IN', {
+      day: 'numeric',
+      month: 'short',
+      year: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    })
+  } catch {
+    return String(dateStr)
+  }
 }
 
 export default function OrderTracking() {
+  const [searchParams] = useSearchParams()
   const [orderId, setOrderId] = useState('')
   const [phone, setPhone] = useState('')
   const [trackingData, setTrackingData] = useState(null)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
 
+  // Pre-fill Order ID from URL parameter (e.g. /track?id=... or /track?order_id=...)
+  useEffect(() => {
+    const initialId = searchParams.get('id') || searchParams.get('order_id')
+    if (initialId) {
+      setOrderId(initialId)
+    }
+  }, [searchParams])
+
   async function handleTrack(e) {
-    e.preventDefault()
+    if (e && e.preventDefault) {
+      e.preventDefault()
+    }
     setError('')
     setTrackingData(null)
 
-    if (!orderId.trim()) {
+    const trimmedOrderId = orderId.trim()
+    const trimmedPhone = phone.trim()
+
+    if (!trimmedOrderId) {
       setError('Please enter your Order ID.')
       return
     }
@@ -40,24 +75,60 @@ export default function OrderTracking() {
     setLoading(true)
 
     try {
-      // Step 2: Invoke Supabase Edge Function
+      // Step 1: Attempt lookup via Supabase Edge Function
       const { data, error: funcError } = await supabase.functions.invoke('track-shiprocket-order', {
         body: {
-          order_id: orderId.trim(),
-          phone_number: phone.trim() || undefined,
+          order_id: trimmedOrderId,
+          phone_number: trimmedPhone || undefined,
         },
       })
 
-      if (funcError) {
-        throw new Error(funcError.message || 'Unable to connect to tracking service.')
-      }
-
-      if (!data || !data.success) {
-        setError(data?.error || "We couldn't find tracking details for this Order ID. Please check and try again.")
+      if (!funcError && data && data.success) {
+        setTrackingData(data)
+        setLoading(false)
         return
       }
 
-      setTrackingData(data)
+      // Step 2: Fallback to database RPC lookup if Edge Function is pending deployment
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedOrderId)
+      if (isUuid) {
+        const { data: dbData, error: dbError } = await supabase.rpc('get_order_status', {
+          p_order_id: trimmedOrderId,
+          p_phone: trimmedPhone || '',
+        })
+
+        if (!dbError && dbData && dbData.length > 0) {
+          const row = dbData[0]
+          setTrackingData({
+            success: true,
+            order_id: trimmedOrderId,
+            current_status: row.order_status ? row.order_status.replace(/_/g, ' ') : 'Processing',
+            courier_name: 'Shiprocket Partner',
+            awb_code: row.tracking_id || 'Pending assignment',
+            origin: 'Garba Vastra Warehouse',
+            destination: 'Customer Address',
+            edd: '3–5 Business Days',
+            track_url: row.tracking_url || '',
+            activities: [
+              {
+                status: `Order ${row.order_status ? row.order_status.replace(/_/g, ' ') : 'Placed'}`,
+                activity: 'Order recorded in our fulfillment system',
+                date: row.created_at || new Date().toISOString(),
+                location: 'Garba Vastra Hub',
+              },
+            ],
+          })
+          setLoading(false)
+          return
+        }
+      }
+
+      // If both fail, display the returned error or user-friendly message
+      const errorMsg =
+        data?.error ||
+        funcError?.message ||
+        "Couldn't find tracking details for this Order ID. Please verify your Order ID and phone number."
+      setError(errorMsg)
     } catch (err) {
       console.error('Tracking lookup error:', err)
       setError(err?.message || 'Something went wrong while fetching tracking details. Please try again later.')
@@ -67,24 +138,25 @@ export default function OrderTracking() {
   }
 
   const activeStage = trackingData ? getStageIndex(trackingData.current_status) : -1
+  const isCancelled = trackingData?.current_status?.toLowerCase().includes('cancel')
 
   return (
     <div className="max-w-2xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
       {/* Header */}
       <div className="text-center mb-10">
-        <span className="text-xs uppercase tracking-widest font-bold text-marigold bg-maroon/10 px-3 py-1 rounded-full inline-block mb-3">
-          Real-Time Tracking
+        <span className="text-xs uppercase tracking-widest font-bold text-marigold bg-maroon/10 px-3.5 py-1 rounded-full inline-block mb-3">
+          Live Order Tracking
         </span>
         <h1 className="font-display text-3xl sm:text-4xl text-maroon font-semibold mb-3">
           Track Your Order
         </h1>
         <p className="text-ink/70 text-sm sm:text-base max-w-md mx-auto">
-          Enter your Order ID and contact number to monitor your Garba Vastra delivery live.
+          Enter your Order ID and phone number to view live shipment updates from our courier partner.
         </p>
       </div>
 
       {/* Form Card */}
-      <div className="bg-white/70 backdrop-blur-md border border-maroon/15 rounded-2xl p-6 sm:p-8 shadow-sm mb-10">
+      <div className="bg-white/80 backdrop-blur-md border border-maroon/15 rounded-2xl p-6 sm:p-8 shadow-sm mb-10">
         <form onSubmit={handleTrack} className="space-y-4">
           <div>
             <label htmlFor="orderId" className="block text-xs font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
@@ -94,7 +166,7 @@ export default function OrderTracking() {
               id="orderId"
               type="text"
               required
-              placeholder="e.g. GV-2026-8492 or UUID"
+              placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               className="w-full bg-ivory/50 border border-maroon/20 rounded-xl px-4 py-3 text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-maroon/30 focus:border-maroon transition-all"
@@ -116,13 +188,13 @@ export default function OrderTracking() {
           </div>
 
           {error && (
-            <div className="flex items-start gap-3 p-4 bg-red-50/90 border border-red-200/80 rounded-xl text-red-800 text-sm animate-fadeIn">
+            <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-xl text-red-800 text-sm">
               <svg className="w-5 h-5 flex-shrink-0 mt-0.5 text-red-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
               </svg>
               <div>
-                <p className="font-medium">Order Lookup Failed</p>
-                <p className="text-red-700/80 text-xs mt-0.5">{error}</p>
+                <p className="font-semibold">Tracking Lookup Failed</p>
+                <p className="text-red-700 text-xs mt-0.5">{error}</p>
               </div>
             </div>
           )}
@@ -154,7 +226,7 @@ export default function OrderTracking() {
 
       {/* Tracking Results Card */}
       {trackingData && (
-        <div className="bg-white rounded-2xl border border-maroon/15 shadow-lg overflow-hidden transition-all animate-fadeIn">
+        <div className="bg-white rounded-2xl border border-maroon/15 shadow-lg overflow-hidden transition-all">
           {/* Header Banner */}
           <div className="bg-gradient-to-r from-maroon to-maroon-dark text-ivory p-6">
             <div className="flex flex-wrap items-center justify-between gap-4">
@@ -163,9 +235,13 @@ export default function OrderTracking() {
                 <p className="text-lg font-bold font-mono tracking-tight">{trackingData.order_id}</p>
               </div>
               <div className="text-right">
-                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-marigold text-ink shadow-sm">
-                  <span className="w-2 h-2 rounded-full bg-teal animate-pulse"></span>
-                  {trackingData.current_status || 'In Transit'}
+                <span
+                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold shadow-sm ${
+                    isCancelled ? 'bg-red-200 text-red-900' : 'bg-marigold text-ink'
+                  }`}
+                >
+                  <span className={`w-2 h-2 rounded-full ${isCancelled ? 'bg-red-600' : 'bg-teal animate-pulse'}`}></span>
+                  <span className="capitalize">{trackingData.current_status || 'In Transit'}</span>
                 </span>
               </div>
             </div>
@@ -174,10 +250,10 @@ export default function OrderTracking() {
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6 pt-4 border-t border-ivory/15 text-xs">
               <div>
                 <span className="text-ivory/60 block">Courier</span>
-                <span className="font-semibold text-ivory">{trackingData.courier_name || 'Shiprocket'}</span>
+                <span className="font-semibold text-ivory">{trackingData.courier_name || 'Shiprocket Partner'}</span>
               </div>
               <div>
-                <span className="text-ivory/60 block">AWB / Waybill</span>
+                <span className="text-ivory/60 block">AWB / Tracking ID</span>
                 <span className="font-mono font-medium text-ivory">{trackingData.awb_code || '—'}</span>
               </div>
               <div>
@@ -193,58 +269,64 @@ export default function OrderTracking() {
 
           <div className="p-6 sm:p-8">
             {/* Visual Stepper Progress Bar */}
-            <div className="mb-10 pt-2">
-              <h2 className="text-xs uppercase tracking-wider font-bold text-ink/50 mb-6">Delivery Progress</h2>
-              <div className="relative flex justify-between">
-                {/* Background Line */}
-                <div className="absolute top-4 left-4 right-4 h-1 bg-maroon/10 -z-0" />
-                {/* Active Progress Line */}
-                <div
-                  className="absolute top-4 left-4 h-1 bg-teal transition-all duration-700 -z-0"
-                  style={{
-                    width: `${Math.min(100, Math.max(0, (activeStage / (PROGRESS_STAGES.length - 1)) * 100))}%`,
-                  }}
-                />
+            {!isCancelled && (
+              <div className="mb-10 pt-2">
+                <h2 className="text-xs uppercase tracking-wider font-bold text-ink/50 mb-6">Delivery Progress</h2>
+                <div className="relative flex justify-between">
+                  <div className="absolute top-4 left-4 right-4 h-1 bg-maroon/10 -z-0" />
+                  <div
+                    className="absolute top-4 left-4 h-1 bg-teal transition-all duration-700 -z-0"
+                    style={{
+                      width: `${Math.min(100, Math.max(0, (activeStage / (PROGRESS_STAGES.length - 1)) * 100))}%`,
+                    }}
+                  />
 
-                {PROGRESS_STAGES.map((stage, idx) => {
-                  const isCompleted = idx < activeStage
-                  const isCurrent = idx === activeStage
+                  {PROGRESS_STAGES.map((stage, idx) => {
+                    const isCompleted = idx < activeStage
+                    const isCurrent = idx === activeStage
 
-                  return (
-                    <div key={stage.key} className="flex flex-col items-center text-center relative z-10 flex-1 px-1">
-                      <div
-                        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
-                          isCompleted
-                            ? 'bg-teal text-white ring-4 ring-teal/20'
-                            : isCurrent
-                            ? 'bg-maroon text-ivory ring-4 ring-marigold/50 scale-110 shadow-md'
-                            : 'bg-ivory border-2 border-maroon/20 text-ink/40'
-                        }`}
-                      >
-                        {isCompleted ? (
-                          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
-                          </svg>
-                        ) : (
-                          idx + 1
-                        )}
+                    return (
+                      <div key={stage.key} className="flex flex-col items-center text-center relative z-10 flex-1 px-1">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold transition-all duration-300 ${
+                            isCompleted
+                              ? 'bg-teal text-white ring-4 ring-teal/20'
+                              : isCurrent
+                              ? 'bg-maroon text-ivory ring-4 ring-marigold/50 scale-110 shadow-md'
+                              : 'bg-ivory border-2 border-maroon/20 text-ink/40'
+                          }`}
+                        >
+                          {isCompleted ? (
+                            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" />
+                            </svg>
+                          ) : (
+                            idx + 1
+                          )}
+                        </div>
+                        <p
+                          className={`text-[11px] sm:text-xs mt-2.5 font-medium leading-tight ${
+                            isCurrent
+                              ? 'text-maroon font-bold'
+                              : isCompleted
+                              ? 'text-teal font-semibold'
+                              : 'text-ink/40'
+                          }`}
+                        >
+                          {stage.label}
+                        </p>
                       </div>
-                      <p
-                        className={`text-[11px] sm:text-xs mt-2.5 font-medium leading-tight ${
-                          isCurrent
-                            ? 'text-maroon font-bold'
-                            : isCompleted
-                            ? 'text-teal font-semibold'
-                            : 'text-ink/40'
-                        }`}
-                      >
-                        {stage.label}
-                      </p>
-                    </div>
-                  )
-                })}
+                    )
+                  })}
+                </div>
               </div>
-            </div>
+            )}
+
+            {isCancelled && (
+              <div className="p-4 rounded-xl bg-red-50 border border-red-200 text-red-800 text-sm mb-6">
+                This shipment was cancelled. If you believe this is in error, please contact customer support.
+              </div>
+            )}
 
             {/* Timeline Activities List */}
             <div>
@@ -254,7 +336,6 @@ export default function OrderTracking() {
                 <div className="space-y-6 relative before:absolute before:inset-0 before:left-3.5 before:w-0.5 before:bg-maroon/10">
                   {trackingData.activities.map((act, index) => (
                     <div key={index} className="relative flex items-start gap-4 pl-8 group">
-                      {/* Timeline Dot */}
                       <div
                         className={`absolute left-2 top-1.5 w-3.5 h-3.5 rounded-full border-2 bg-white transition-all ${
                           index === 0
@@ -263,14 +344,13 @@ export default function OrderTracking() {
                         }`}
                       />
 
-                      {/* Content */}
                       <div className="flex-1 bg-ivory/40 hover:bg-ivory/80 transition-colors p-3.5 rounded-xl border border-maroon/10">
                         <div className="flex flex-wrap items-center justify-between gap-1 mb-1">
                           <p className="text-xs font-semibold text-ink/90">
                             {act.status || act.activity || 'Status Update'}
                           </p>
                           <span className="text-[11px] text-ink/50 font-mono">
-                            {act.date ? new Date(act.date).toLocaleString('en-IN', { dateStyle: 'medium', timeStyle: 'short' }) : 'Recent'}
+                            {formatTimelineDate(act.date)}
                           </span>
                         </div>
                         {act.activity && act.activity !== act.status && (
