@@ -46,6 +46,7 @@ create table if not exists orders (
   order_status text not null default 'placed',      -- placed | packed | shipped | out_for_delivery | delivered | cancelled
   tracking_id text,
   tracking_url text,
+  awb_number text,
   created_at timestamptz not null default now()
 );
 
@@ -147,6 +148,7 @@ returns table (
   payment_status text,
   tracking_id text,
   tracking_url text,
+  awb_number text,
   created_at timestamptz,
   total numeric
 )
@@ -155,7 +157,7 @@ security definer
 as $$
 begin
   return query
-  select o.order_status, o.payment_status, o.tracking_id, o.tracking_url, o.created_at, o.total
+  select o.order_status, o.payment_status, o.tracking_id, o.tracking_url, o.awb_number, o.created_at, o.total
   from orders o
   where o.id = p_order_id and o.phone = p_phone;
 end;
