@@ -95,7 +95,7 @@ export default function Checkout() {
     try {
       await signInWithGoogle()
     } catch (err) {
-      console.error(err)
+      console.error('[Checkout] Google login error:', err)
       setError(err.message || 'Google authentication failed. Please try again.')
       setOauthLoading(false)
     }
@@ -114,7 +114,7 @@ export default function Checkout() {
       })
       setAuthNotice('')
     } catch (err) {
-      console.error(err)
+      console.error('[Checkout] Sign out error:', err)
     }
   }
 
@@ -141,62 +141,111 @@ export default function Checkout() {
           items,
         }),
       })
-      const orderData = await orderRes.json()
-      if (!orderRes.ok) throw new Error(orderData.error || 'Could not start payment.')
+      const orderData = await orderRes.json().catch((jsonErr) => {
+        console.error('[Checkout] Failed to parse /api/create-razorpay-order response as JSON:', jsonErr)
+        return { error: `Server returned status ${orderRes.status}` }
+      })
+      if (!orderRes.ok) {
+        console.error('[Checkout] Order creation failed:', {
+          status: orderRes.status,
+          statusText: orderRes.statusText,
+          orderData,
+        })
+        throw new Error(orderData.error || `Could not start payment (Status ${orderRes.status}).`)
+      }
+
+      const rzpOrderId = orderData.razorpayOrderId || orderData.order_id
+      const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID
+
+      if (!razorpayKey) {
+        console.error('[Checkout] Missing VITE_RAZORPAY_KEY_ID environment variable')
+        throw new Error('Razorpay Key ID is not configured (VITE_RAZORPAY_KEY_ID).')
+      }
 
       const rzp = new window.Razorpay({
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID,
+        key: razorpayKey,
         amount: orderData.amount,
-        currency: 'INR',
+        currency: orderData.currency || 'INR',
         name: 'Garba Vastra',
         description: `${items.length} item(s)`,
-        order_id: orderData.razorpayOrderId,
-        prefill: { name: form.name, contact: form.phone, email: form.email },
+        order_id: rzpOrderId,
+        prefill: {
+          name: form.name,
+          contact: form.phone,
+          email: form.email,
+        },
         theme: { color: '#7A2048' },
         handler: async function (response) {
-          // Verify payment server-side, then finalize the order + reduce stock
-          const verifyRes = await fetch('/api/verify-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              razorpay_order_id: response.razorpay_order_id,
-              razorpay_payment_id: response.razorpay_payment_id,
-              razorpay_signature: response.razorpay_signature,
-              internalOrderId: orderData.internalOrderId,
-            }),
-          })
-          const verifyData = await verifyRes.json()
-          if (verifyRes.ok && verifyData.success) {
-            // Save details to user Supabase metadata for persistent auto-fill across sessions
-            if (user) {
-              try {
-                await updateUserProfile({
-                  name: form.name,
-                  phone: form.phone,
-                  address: form.address,
-                  city: form.city,
-                  pincode: form.pincode,
-                })
-              } catch (profileErr) {
-                console.error('Failed to update persistent profile:', profileErr)
+          // Verify payment signature server-side
+          try {
+            const verifyRes = await fetch('/api/verify-payment', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                razorpay_order_id: response.razorpay_order_id,
+                razorpay_payment_id: response.razorpay_payment_id,
+                razorpay_signature: response.razorpay_signature,
+                internalOrderId: orderData.internalOrderId,
+              }),
+            })
+            const verifyData = await verifyRes.json().catch((jsonErr) => {
+              console.error('[Checkout] Failed to parse /api/verify-payment response as JSON:', jsonErr)
+              return { success: false, error: `Verification returned status ${verifyRes.status}` }
+            })
+            if (verifyRes.ok && verifyData.success) {
+              if (user) {
+                try {
+                  await updateUserProfile({
+                    name: form.name,
+                    phone: form.phone,
+                    address: form.address,
+                    city: form.city,
+                    pincode: form.pincode,
+                  })
+                } catch (profileErr) {
+                  console.error('[Checkout] Failed to update persistent profile:', profileErr)
+                }
               }
-            }
 
-            clearCart()
-            navigate(`/order-confirmed/${orderData.internalOrderId}`)
-          } else {
-            setError(
-              'Payment verification failed. If money was deducted, it will be refunded — contact us with your payment ID: ' +
-                response.razorpay_payment_id
-            )
+              clearCart()
+              navigate(orderData.internalOrderId ? `/order-confirmed/${orderData.internalOrderId}` : '/shop')
+            } else {
+              console.error('[Checkout] Payment verification error response:', verifyData)
+              setError(
+                verifyData.error ||
+                  'Payment verification failed. If money was deducted, it will be refunded. Payment ID: ' +
+                    response.razorpay_payment_id
+              )
+              setSubmitting(false)
+            }
+          } catch (verifyErr) {
+            console.error('[Checkout] Verification network error:', verifyErr)
+            setError('Verification request failed. Please check your network and contact support if payment was debited.')
+            setSubmitting(false)
           }
         },
         modal: {
-          ondismiss: () => setSubmitting(false),
+          ondismiss: () => {
+            setSubmitting(false)
+            setError('Payment cancelled by user. You can try again whenever you are ready.')
+          },
         },
       })
+
+      rzp.on('payment.failed', function (response) {
+        console.error('[Checkout] Razorpay payment failed event:', response?.error)
+        setSubmitting(false)
+        const errorDesc = response?.error?.description || response?.error?.reason || 'Payment could not be processed.'
+        setError(`Payment failed: ${errorDesc}`)
+      })
+
       rzp.open()
     } catch (err) {
+      console.error('[Checkout] Checkout/Payment error caught:', {
+        message: err?.message,
+        stack: err?.stack,
+        error: err,
+      })
       setError(err.message)
       setSubmitting(false)
     }

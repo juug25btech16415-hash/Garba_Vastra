@@ -19,21 +19,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    // Clients are created HERE, not at module scope. If an env var is missing,
-    // this throws inside the try/catch below and returns clean JSON — instead
-    // of crashing at cold-start and making Vercel emit its own plain-text
-    // error page (which is what broke JSON.parse on the frontend before).
-    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-      throw new Error('Server misconfigured: missing Supabase environment variables.')
+    const razorpayKeyId = process.env.RAZORPAY_KEY_ID
+    const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET
+
+    if (!razorpayKeyId || !razorpayKeySecret) {
+      console.error('[create-razorpay-order] Razorpay keys missing in environment:', {
+        hasKeyId: Boolean(razorpayKeyId),
+        hasKeySecret: Boolean(razorpayKeySecret),
+      })
+      return res.status(500).json({ error: 'Razorpay keys missing in environment' })
     }
-    if (!process.env.RAZORPAY_KEY_ID || !process.env.RAZORPAY_KEY_SECRET) {
-      throw new Error('Server misconfigured: missing Razorpay environment variables.')
+
+    if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      console.error('[create-razorpay-order] Supabase credentials missing in environment:', {
+        hasSupabaseUrl: Boolean(process.env.SUPABASE_URL),
+        hasServiceRoleKey: Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY),
+      })
+      return res.status(500).json({ error: 'Supabase environment variables missing in environment' })
     }
 
     const supabaseAdmin = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY)
     const razorpay = new Razorpay({
-      key_id: process.env.RAZORPAY_KEY_ID,
-      key_secret: process.env.RAZORPAY_KEY_SECRET,
+      key_id: razorpayKeyId,
+      key_secret: razorpayKeySecret,
     })
 
     const { customer, items } = req.body || {}
@@ -100,6 +108,10 @@ export default async function handler(req, res) {
 
     // Now create the actual Razorpay order (amount is in paise)
     const amountInPaise = Math.round(total * 100)
+    if (amountInPaise < 100) {
+      return res.status(400).json({ error: 'Order total must be at least ₹1 (100 paise).' })
+    }
+
     const razorpayOrder = await razorpay.orders.create({
       amount: amountInPaise,
       currency: 'INR',
@@ -112,12 +124,18 @@ export default async function handler(req, res) {
       .eq('id', order.id)
 
     return res.status(200).json({
+      order_id: razorpayOrder.id,
       razorpayOrderId: razorpayOrder.id,
       amount: amountInPaise,
+      currency: 'INR',
       internalOrderId: order.id,
     })
   } catch (err) {
-    console.error(err)
+    console.error('[create-razorpay-order] Order creation failed with exception:', {
+      message: err?.message,
+      stack: err?.stack,
+      error: err,
+    })
     return res.status(500).json({ error: err.message || 'Internal Server Error' })
   }
 }
