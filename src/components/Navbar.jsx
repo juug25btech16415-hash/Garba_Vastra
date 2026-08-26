@@ -10,16 +10,20 @@ export default function Navbar() {
 
   return (
     <header className="sticky top-0 z-40 bg-ivory/95 backdrop-blur border-b border-maroon/10">
-      <div className="max-w-6xl mx-auto px-4 sm:px-5 py-3 sm:py-4 flex items-center justify-between gap-4 sm:gap-6">
-        <Link to="/" className="flex items-center shrink-0">
-          <img
-            src="/main-logo.png"
-            alt="Garba Vastra"
-            className="h-14 sm:h-16 md:h-18 w-auto object-contain shrink-0"
-          />
-        </Link>
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
+        {/* Left container: Logo */}
+        <div className="flex items-center shrink-0">
+          <Link to="/" className="flex items-center">
+            <img
+              src="/main-logo.png"
+              alt="Garba Vastra"
+              className="h-14 sm:h-16 md:h-18 w-auto object-contain"
+            />
+          </Link>
+        </div>
 
-        <nav className="flex items-center gap-3 sm:gap-4 md:gap-6 text-xs sm:text-sm font-medium text-ink/80 shrink-0">
+        {/* Right container: Navigation & Actions */}
+        <nav className="flex items-center justify-end gap-3 sm:gap-6 ml-auto text-xs sm:text-sm font-medium text-ink/80 shrink-0">
           <Link to="/" className="hover:text-maroon transition-colors">
             Shop
           </Link>
