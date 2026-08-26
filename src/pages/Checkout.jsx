@@ -38,6 +38,8 @@ function GoogleIcon() {
   )
 }
 
+const STORAGE_KEY = 'checkout_form_data'
+
 export default function Checkout() {
   const { items, totalPrice, clearCart } = useCart()
   const { user, signInWithGoogle, signOut, updateUserProfile, loading: authLoading } = useAuth()
@@ -58,18 +60,41 @@ export default function Checkout() {
   const [error, setError] = useState('')
   const [authNotice, setAuthNotice] = useState('')
 
+  // Restore saved form data from localStorage on mount
+  useEffect(() => {
+    try {
+      const savedForm = localStorage.getItem(STORAGE_KEY)
+      if (savedForm) {
+        const parsed = JSON.parse(savedForm)
+        if (parsed && typeof parsed === 'object') {
+          setForm((prev) => ({ ...prev, ...parsed }))
+        }
+      }
+    } catch (err) {
+      console.error('[Checkout] Failed to load saved form data from localStorage:', err)
+    }
+  }, [])
+
   // Auto-fill from authenticated user and persistent metadata
   useEffect(() => {
     if (user) {
       const meta = user.user_metadata || {}
-      setForm((prev) => ({
-        name: prev.name || meta.name || '',
-        phone: prev.phone || meta.phone || '',
-        email: user.email || prev.email || '',
-        address: prev.address || meta.address || '',
-        city: prev.city || meta.city || '',
-        pincode: prev.pincode || meta.pincode || '',
-      }))
+      setForm((prev) => {
+        const next = {
+          name: prev.name || meta.name || '',
+          phone: prev.phone || meta.phone || '',
+          email: user.email || prev.email || '',
+          address: prev.address || meta.address || '',
+          city: prev.city || meta.city || '',
+          pincode: prev.pincode || meta.pincode || '',
+        }
+        try {
+          localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+        } catch (err) {
+          console.error('[Checkout] Failed to save form data to localStorage:', err)
+        }
+        return next
+      })
 
       if (meta.address || meta.phone || meta.city || meta.pincode) {
         setAuthNotice('Saved shipping address applied.')
@@ -82,7 +107,15 @@ export default function Checkout() {
   }, [user])
 
   function update(field, value) {
-    setForm((f) => ({ ...f, [field]: value }))
+    setForm((f) => {
+      const next = { ...f, [field]: value }
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(next))
+      } catch (err) {
+        console.error('[Checkout] Failed to save form data to localStorage:', err)
+      }
+      return next
+    })
   }
 
   function isValid() {
@@ -112,6 +145,11 @@ export default function Checkout() {
         city: '',
         pincode: '',
       })
+      try {
+        localStorage.removeItem(STORAGE_KEY)
+      } catch (err) {
+        console.error('[Checkout] Failed to clear form data from localStorage:', err)
+      }
       setAuthNotice('')
     } catch (err) {
       console.error('[Checkout] Sign out error:', err)
@@ -205,6 +243,12 @@ export default function Checkout() {
                 } catch (profileErr) {
                   console.error('[Checkout] Failed to update persistent profile:', profileErr)
                 }
+              }
+
+              try {
+                localStorage.removeItem(STORAGE_KEY)
+              } catch (storageErr) {
+                console.error('[Checkout] Failed to clear checkout form from localStorage:', storageErr)
               }
 
               clearCart()
