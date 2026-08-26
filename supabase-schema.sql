@@ -47,6 +47,8 @@ create table if not exists orders (
   tracking_id text,
   tracking_url text,
   awb_number text,
+  shiprocket_order_id text,
+  shipment_id text,
   created_at timestamptz not null default now()
 );
 

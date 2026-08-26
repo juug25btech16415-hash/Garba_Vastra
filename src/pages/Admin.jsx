@@ -46,7 +46,11 @@ export default function Admin() {
   }
 
   async function loadOrders() {
-    const { data } = await supabase.from('orders').select('*').order('created_at', { ascending: false })
+    const { data } = await supabase
+      .from('orders')
+      .select('*')
+      .eq('payment_status', 'paid')
+      .order('created_at', { ascending: false })
     setOrders(data || [])
   }
 
