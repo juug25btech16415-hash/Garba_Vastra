@@ -75,60 +75,44 @@ export default function OrderTracking() {
     setLoading(true)
 
     try {
-      // Step 1: Attempt lookup via Supabase Edge Function
-      const { data, error: funcError } = await supabase.functions.invoke('track-shiprocket-order', {
-        body: {
-          order_id: trimmedOrderId,
-          phone_number: trimmedPhone || undefined,
-        },
+      // Look up the order directly from your database. (A Shiprocket edge
+      // function also exists in this project for real courier scan updates,
+      // but it needs SHIPROCKET_EMAIL/PASSWORD configured to work — until
+      // then this direct lookup is faster and won't silently fail.)
+      const { data: dbData, error: dbError } = await supabase.rpc('get_order_status', {
+        p_order_id: trimmedOrderId,
+        p_phone: trimmedPhone || '',
       })
 
-      if (!funcError && data && data.success) {
-        setTrackingData(data)
+      if (!dbError && dbData && dbData.length > 0) {
+        const row = dbData[0]
+        setTrackingData({
+          success: true,
+          order_id: trimmedOrderId,
+          current_status: row.order_status ? row.order_status.replace(/_/g, ' ') : 'Processing',
+          courier_name: 'Garba Vastra Shipping',
+          awb_code: row.tracking_id || row.awb_number || 'Pending assignment',
+          origin: 'Garba Vastra Warehouse',
+          destination: 'Customer Address',
+          edd: '3–5 Business Days',
+          track_url: row.tracking_url || '',
+          activities: [
+            {
+              status: `Order ${row.order_status ? row.order_status.replace(/_/g, ' ') : 'Placed'}`,
+              activity: 'Order recorded in our fulfillment system',
+              date: row.created_at || new Date().toISOString(),
+              location: 'Garba Vastra Hub',
+            },
+          ],
+        })
         setLoading(false)
         return
       }
 
-      // Step 2: Fallback to database RPC lookup if Edge Function is pending deployment
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(trimmedOrderId)
-      if (isUuid) {
-        const { data: dbData, error: dbError } = await supabase.rpc('get_order_status', {
-          p_order_id: trimmedOrderId,
-          p_phone: trimmedPhone || '',
-        })
-
-        if (!dbError && dbData && dbData.length > 0) {
-          const row = dbData[0]
-          setTrackingData({
-            success: true,
-            order_id: trimmedOrderId,
-            current_status: row.order_status ? row.order_status.replace(/_/g, ' ') : 'Processing',
-            courier_name: 'Shiprocket Partner',
-            awb_code: row.tracking_id || 'Pending assignment',
-            origin: 'Garba Vastra Warehouse',
-            destination: 'Customer Address',
-            edd: '3–5 Business Days',
-            track_url: row.tracking_url || '',
-            activities: [
-              {
-                status: `Order ${row.order_status ? row.order_status.replace(/_/g, ' ') : 'Placed'}`,
-                activity: 'Order recorded in our fulfillment system',
-                date: row.created_at || new Date().toISOString(),
-                location: 'Garba Vastra Hub',
-              },
-            ],
-          })
-          setLoading(false)
-          return
-        }
-      }
-
-      // If both fail, display the returned error or user-friendly message
-      const errorMsg =
-        data?.error ||
-        funcError?.message ||
-        "Couldn't find tracking details for this Order ID. Please verify your Order ID and phone number."
-      setError(errorMsg)
+      setError(
+        dbError?.message ||
+          "Couldn't find an order with that ID and phone number. Please double-check both."
+      )
     } catch (err) {
       console.error('Tracking lookup error:', err)
       setError(err?.message || 'Something went wrong while fetching tracking details. Please try again later.')
