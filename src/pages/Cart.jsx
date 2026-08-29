@@ -34,7 +34,7 @@ export default function Cart() {
       <div className="divide-y divide-maroon/10">
         {items.map((item) => (
           <div key={`${item.productId}-${item.size}-${item.color}`} className="flex gap-4 py-5">
-            <img src={item.image} alt={item.name} className="w-20 h-24 object-cover rounded-md bg-teal/5" />
+            <img src={item.image} alt={item.name || 'Cart item'} loading="lazy" className="w-20 h-24 object-cover rounded-md bg-teal/5" />
             <div className="flex-1">
               <p className="font-display text-lg">{item.name}</p>
               <p className="text-sm text-ink/60">

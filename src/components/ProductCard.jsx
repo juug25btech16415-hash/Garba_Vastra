@@ -13,10 +13,11 @@ export default function ProductCard({ product }) {
       to={`/product/${product.id}`}
       className="group block"
     >
-      <div className="relative aspect-[3/4] overflow-hidden rounded-lg bg-teal/5 border border-maroon/10">
+      <div className="relative aspect-[3/4] w-full overflow-hidden rounded-lg bg-teal/5 border border-maroon/10">
         <img
           src={product.image_url}
-          alt={product.name}
+          alt={product.name || 'Handcrafted Chaniya Choli'}
+          loading="lazy"
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <button

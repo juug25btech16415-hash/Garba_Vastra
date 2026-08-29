@@ -35,7 +35,8 @@ function Gallery({ images, name }) {
           <img
             key={i}
             src={src}
-            alt={`${name} — photo ${i + 1}`}
+            alt={`${name || 'Product'} — photo ${i + 1}`}
+            loading="lazy"
             className="w-full h-full object-cover flex-shrink-0 snap-center"
           />
         ))}

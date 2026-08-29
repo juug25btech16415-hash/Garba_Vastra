@@ -326,7 +326,7 @@ export default function Admin() {
                   <div className="flex flex-wrap gap-2 mt-3">
                     {form.extraImages.map((url, i) => (
                       <div key={`existing-${i}`} className="relative">
-                        <img src={url} alt="" className="w-16 h-20 object-cover rounded border border-maroon/10" />
+                        <img src={url} alt={`Gallery preview ${i + 1}`} loading="lazy" className="w-16 h-20 object-cover rounded border border-maroon/10" />
                         <button
                           type="button"
                           onClick={() => removeExtraImage(i)}
@@ -341,7 +341,8 @@ export default function Admin() {
                       <div key={`new-${i}`} className="relative">
                         <img
                           src={URL.createObjectURL(file)}
-                          alt=""
+                          alt={`New upload preview ${i + 1}`}
+                          loading="lazy"
                           className="w-16 h-20 object-cover rounded border border-teal/30"
                         />
                         <button
@@ -430,7 +431,7 @@ export default function Admin() {
             <div className="space-y-3 max-h-[720px] overflow-y-auto pr-1">
               {products.map((p) => (
                 <div key={p.id} className="flex gap-3 border border-maroon/10 rounded-md p-3">
-                  <img src={p.image_url} alt={p.name} className="w-16 h-20 object-cover rounded bg-teal/5" />
+                  <img src={p.image_url} alt={p.name || 'Product'} loading="lazy" className="w-16 h-20 object-cover rounded bg-teal/5" />
                   <div className="flex-1 min-w-0">
                     <p className="font-medium truncate">{p.name}</p>
                     <p className="text-sm text-ink/60">₹{p.price} · Stock: {p.stock} {!p.is_active && '· Hidden'}</p>
