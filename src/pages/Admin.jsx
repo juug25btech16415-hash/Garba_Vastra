@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   stock: '',
   is_active: true,
   image_url: '',
+  extraImages: [], // existing gallery image URLs (when editing)
   specs: [{ key: '', value: '' }],
 }
 
@@ -25,6 +26,7 @@ export default function Admin() {
   const [orders, setOrders] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [imageFile, setImageFile] = useState(null)
+  const [extraImageFiles, setExtraImageFiles] = useState([]) // newly picked files, not yet uploaded
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState('')
 
@@ -92,17 +94,28 @@ export default function Admin() {
       stock: p.stock,
       is_active: p.is_active,
       image_url: p.image_url,
+      extraImages: p.images || [],
       specs: specEntries.length > 0
         ? specEntries.map(([key, value]) => ({ key, value }))
         : [{ key: '', value: '' }],
     })
     setImageFile(null)
+    setExtraImageFiles([])
     window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
+
+  function removeExtraImage(index) {
+    setForm((f) => ({ ...f, extraImages: f.extraImages.filter((_, i) => i !== index) }))
+  }
+
+  function removeExtraImageFile(index) {
+    setExtraImageFiles((files) => files.filter((_, i) => i !== index))
   }
 
   function resetForm() {
     setForm(EMPTY_FORM)
     setImageFile(null)
+    setExtraImageFiles([])
   }
 
   async function handleSaveProduct(e) {
@@ -125,7 +138,20 @@ export default function Admin() {
         imageUrl = publicUrlData.publicUrl
       }
 
-      if (!imageUrl) throw new Error('Please add an image (upload a file or paste a URL).')
+      if (!imageUrl) throw new Error('Please add a main image (upload a file or paste a URL).')
+
+      // Upload any newly-picked gallery photos, then merge with any that
+      // already existed on this product (from a previous edit)
+      const newlyUploadedUrls = []
+      for (const file of extraImageFiles) {
+        const ext = file.name.split('.').pop()
+        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: uploadError } = await supabase.storage.from('product-images').upload(path, file)
+        if (uploadError) throw uploadError
+        const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(path)
+        newlyUploadedUrls.push(publicUrlData.publicUrl)
+      }
+      const images = [...form.extraImages, ...newlyUploadedUrls]
 
       const specifications = {}
       form.specs.forEach(({ key, value }) => {
@@ -142,6 +168,7 @@ export default function Admin() {
         stock: Number(form.stock),
         is_active: form.is_active,
         image_url: imageUrl,
+        images,
         specifications,
       }
 
@@ -266,7 +293,7 @@ export default function Admin() {
               />
 
               <div>
-                <label className="block text-sm font-medium mb-1.5">Photo</label>
+                <label className="block text-sm font-medium mb-1.5">Main photo</label>
                 <input
                   type="file"
                   accept="image/*"
@@ -280,6 +307,55 @@ export default function Admin() {
                   onChange={(e) => update('image_url', e.target.value)}
                   className="w-full mt-1.5 border border-maroon/20 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-maroon/40"
                 />
+                <p className="text-xs text-ink/50 mt-1">This is the cover photo shown on the shop grid.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  Additional photos (customers can scroll through these on the product page)
+                </label>
+                <input
+                  type="file"
+                  accept="image/*"
+                  multiple
+                  onChange={(e) => setExtraImageFiles((prev) => [...prev, ...Array.from(e.target.files)])}
+                  className="text-sm"
+                />
+
+                {(form.extraImages.length > 0 || extraImageFiles.length > 0) && (
+                  <div className="flex flex-wrap gap-2 mt-3">
+                    {form.extraImages.map((url, i) => (
+                      <div key={`existing-${i}`} className="relative">
+                        <img src={url} alt="" className="w-16 h-20 object-cover rounded border border-maroon/10" />
+                        <button
+                          type="button"
+                          onClick={() => removeExtraImage(i)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-maroon text-ivory text-xs flex items-center justify-center"
+                          aria-label="Remove photo"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                    {extraImageFiles.map((file, i) => (
+                      <div key={`new-${i}`} className="relative">
+                        <img
+                          src={URL.createObjectURL(file)}
+                          alt=""
+                          className="w-16 h-20 object-cover rounded border border-teal/30"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => removeExtraImageFile(i)}
+                          className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-maroon text-ivory text-xs flex items-center justify-center"
+                          aria-label="Remove photo"
+                        >
+                          ✕
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               <label className="flex items-center gap-2 text-sm">

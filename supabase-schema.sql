@@ -17,6 +17,7 @@ create table if not exists products (
   description text default '',
   price numeric not null check (price >= 0),
   image_url text not null,
+  images text[] not null default '{}',
   category text default 'Chaniya Choli',
   sizes text[] default '{}',
   colors text[] default '{}',

@@ -1,9 +1,82 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 import { useCart } from '../lib/CartContext'
 import { useWishlist } from '../lib/WishlistContext'
 import { SHIPPING_FEE, FREE_SHIPPING_THRESHOLD } from '../lib/shipping'
+
+function Gallery({ images, name }) {
+  const scrollerRef = useRef(null)
+  const [activeIndex, setActiveIndex] = useState(0)
+
+  function scrollToIndex(i) {
+    const el = scrollerRef.current
+    if (!el) return
+    el.scrollTo({ left: i * el.clientWidth, behavior: 'smooth' })
+    setActiveIndex(i)
+  }
+
+  function handleScroll() {
+    const el = scrollerRef.current
+    if (!el) return
+    const i = Math.round(el.scrollLeft / el.clientWidth)
+    setActiveIndex(i)
+  }
+
+  return (
+    <div className="relative">
+      <div
+        ref={scrollerRef}
+        onScroll={handleScroll}
+        className="aspect-[3/4] rounded-lg overflow-x-auto flex snap-x snap-mandatory scroll-smooth bg-teal/5 border border-maroon/10"
+        style={{ scrollbarWidth: 'none' }}
+      >
+        {images.map((src, i) => (
+          <img
+            key={i}
+            src={src}
+            alt={`${name} — photo ${i + 1}`}
+            className="w-full h-full object-cover flex-shrink-0 snap-center"
+          />
+        ))}
+      </div>
+
+      {images.length > 1 && (
+        <>
+          <button
+            onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))}
+            disabled={activeIndex === 0}
+            aria-label="Previous photo"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-0"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => scrollToIndex(Math.min(images.length - 1, activeIndex + 1))}
+            disabled={activeIndex === images.length - 1}
+            aria-label="Next photo"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-0"
+          >
+            →
+          </button>
+
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+            {images.map((_, i) => (
+              <button
+                key={i}
+                onClick={() => scrollToIndex(i)}
+                aria-label={`Go to photo ${i + 1}`}
+                className={`w-1.5 h-1.5 rounded-full transition-all ${
+                  i === activeIndex ? 'bg-maroon w-4' : 'bg-maroon/30'
+                }`}
+              />
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
 
 export default function ProductDetail() {
   const { id } = useParams()
@@ -53,12 +126,15 @@ export default function ProductDetail() {
 
   return (
     <div className="max-w-6xl mx-auto px-5 py-10 grid md:grid-cols-2 gap-10">
-      <div className="aspect-[3/4] rounded-lg overflow-hidden bg-teal/5 border border-maroon/10 relative">
-        <img src={product.image_url} alt={product.name} className="w-full h-full object-cover" />
+      <div className="relative">
+        <Gallery
+          images={[product.image_url, ...(product.images || [])].filter(Boolean)}
+          name={product.name}
+        />
         <button
           onClick={() => toggle(product.id)}
           aria-label="Toggle wishlist"
-          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform text-xl"
+          className="absolute top-4 right-4 w-10 h-10 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform text-xl z-10"
         >
           <span className={isWishlisted(product.id) ? 'text-maroon' : 'text-ink/30'}>
             {isWishlisted(product.id) ? '♥' : '♡'}
