@@ -11,6 +11,7 @@ import OrderTracking from './pages/OrderTracking'
 import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
+import ProtectedRoute from './components/ProtectedRoute'
 
 export default function App() {
   return (
@@ -27,7 +28,14 @@ export default function App() {
           <Route path="/track" element={<OrderTracking />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/admin/login" element={<AdminLogin />} />
-          <Route path="/admin" element={<Admin />} />
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
         </Routes>
       </main>
       <Footer />
