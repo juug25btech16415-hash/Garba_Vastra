@@ -1,3 +1,5 @@
+import { Link } from 'react-router-dom'
+
 export default function Footer() {
   return (
     <footer className="border-t border-maroon/10 mt-16">
@@ -14,6 +16,7 @@ export default function Footer() {
         <div className="text-center flex flex-col gap-1">
           <p>Contact for any queries: +91 9712029713</p>
           <p>Email: vritika110@gmail.com</p>
+          <Link to="/privacy-policy" className="text-teal hover:underline">Privacy Policy</Link>
         </div>
         
         {/* 3. Right Side: Taglines */}

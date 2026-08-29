@@ -8,6 +8,7 @@ import Wishlist from './pages/Wishlist'
 import Checkout from './pages/Checkout'
 import OrderConfirmed from './pages/OrderConfirmed'
 import OrderTracking from './pages/OrderTracking'
+import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route path="/checkout" element={<Checkout />} />
           <Route path="/order-confirmed/:id" element={<OrderConfirmed />} />
           <Route path="/track" element={<OrderTracking />} />
+          <Route path="/privacy-policy" element={<PrivacyPolicy />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
