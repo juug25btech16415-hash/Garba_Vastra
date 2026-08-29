@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCart } from '../lib/CartContext'
 import { useWishlist } from '../lib/WishlistContext'
 import { useAuth } from '../lib/AuthContext'
@@ -7,12 +7,23 @@ export default function Navbar() {
   const { totalQty } = useCart()
   const { ids } = useWishlist()
   const { user } = useAuth()
+  const navigate = useNavigate()
 
   return (
     <header className="sticky top-0 z-40 bg-ivory/95 backdrop-blur border-b border-maroon/10">
       <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-3 sm:py-4 flex items-center justify-between">
-        {/* Left container: Logo */}
-        <div className="flex items-center shrink-0">
+        {/* Left container: Back Arrow & Logo */}
+        <div className="flex items-center shrink-0 gap-3 sm:gap-4">
+          <button
+            onClick={() => navigate(-1)}
+            className="p-1 text-ink/80 hover:text-maroon transition-colors cursor-pointer"
+            aria-label="Go back"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-5 h-5 sm:w-6 sm:h-6">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5L3 12m0 0l7.5-7.5M3 12h18" />
+            </svg>
+          </button>
+
           <Link to="/" className="flex items-center">
             <img
               src="/main-logo.png"
