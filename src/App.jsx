@@ -1,4 +1,5 @@
-import { Routes, Route, ScrollRestoration } from 'react-router-dom'
+import { useEffect } from 'react'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -13,10 +14,20 @@ import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
 import ProtectedRoute from './components/ProtectedRoute'
 
+function ScrollToTop() {
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
+
+  return null
+}
+
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
-      <ScrollRestoration />
+      <ScrollToTop />
       <Navbar />
       <main className="flex-1">
         <Routes>
