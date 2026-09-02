@@ -94,7 +94,7 @@ export default function Navbar() {
                   {user.user_metadata?.name || user.email?.split('@')[0]}
                 </span>
                 <Link
-                  to="/admin"
+                  to="/dashboard"
                   className="ml-1 text-xs text-maroon/80 hover:text-maroon underline underline-offset-2 transition-colors cursor-pointer"
                 >
                   Dashboard
@@ -148,7 +148,7 @@ export default function Navbar() {
           </div>
           <div className="pt-2 flex flex-col gap-1 text-sm font-medium">
             <Link
-              to="/admin"
+              to="/dashboard"
               onClick={() => setIsMenuOpen(false)}
               className="flex items-center gap-2 py-2 px-1 text-ink hover:text-maroon transition-colors"
             >
