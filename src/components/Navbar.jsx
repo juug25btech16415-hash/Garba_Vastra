@@ -6,7 +6,7 @@ import { useAuth } from '../lib/AuthContext'
 export default function Navbar() {
   const { totalQty } = useCart()
   const { ids } = useWishlist()
-  const { user } = useAuth()
+  const { user, signOut } = useAuth()
   const navigate = useNavigate()
   const location = useLocation()
 
@@ -61,16 +61,19 @@ export default function Navbar() {
             )}
           </Link>
           {user && (
-            <div
-              className="flex items-center gap-1.5 pl-2 border-l border-maroon/15 text-xs text-maroon font-semibold"
-              title={user.email}
-            >
-              <div className="w-6 h-6 rounded-full bg-maroon/10 text-maroon flex items-center justify-center text-xs uppercase font-bold">
+            <div className="flex items-center gap-1.5 pl-2 border-l border-maroon/15 text-xs text-maroon font-semibold">
+              <div className="w-6 h-6 rounded-full bg-maroon/10 text-maroon flex items-center justify-center text-xs uppercase font-bold" title={user.email}>
                 {user.email ? user.email.charAt(0) : 'U'}
               </div>
-              <span className="hidden sm:inline-block max-w-[100px] truncate">
+              <span className="hidden sm:inline-block max-w-[100px] truncate" title={user.email}>
                 {user.user_metadata?.name || user.email?.split('@')[0]}
               </span>
+              <button 
+                onClick={() => signOut()}
+                className="ml-1 sm:ml-2 text-[10px] sm:text-xs text-maroon/70 hover:text-maroon underline underline-offset-2 transition-colors cursor-pointer"
+              >
+                Log out
+              </button>
             </div>
           )}
         </nav>
