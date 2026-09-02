@@ -31,7 +31,7 @@ export default function Navbar() {
             <img
               src="/main-logo.png"
               alt="Garba Vastra"
-              className="h-14 sm:h-16 md:h-18 w-auto object-contain"
+              className="h-14 sm:h-16 md:h-18 w-auto object-contain mix-blend-multiply"
             />
           </Link>
         </div>
