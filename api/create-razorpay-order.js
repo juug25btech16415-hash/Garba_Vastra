@@ -18,6 +18,38 @@ export default async function handler(req, res) {
     return res.status(405).json({ error: 'Method not allowed' })
   }
 
+  const { customer, items } = req.body || {}
+
+  if (!customer || typeof customer !== 'object') {
+    return res.status(400).json({ error: 'Customer details are required.' })
+  }
+
+  if (typeof customer.name !== 'string' || !customer.name.trim()) {
+    return res.status(400).json({ error: 'Valid customer name is required.' })
+  }
+
+  if (typeof customer.address !== 'string' || !customer.address.trim()) {
+    return res.status(400).json({ error: 'Valid customer address is required.' })
+  }
+
+  if (typeof customer.city !== 'string' || !customer.city.trim()) {
+    return res.status(400).json({ error: 'Valid customer city is required.' })
+  }
+
+  const phone = typeof customer.phone === 'string' ? customer.phone.trim() : (typeof customer.phone === 'number' ? String(customer.phone) : '')
+  if (!/^\d{10}$/.test(phone)) {
+    return res.status(400).json({ error: 'Customer phone must be exactly 10 digits.' })
+  }
+
+  const pincode = typeof customer.pincode === 'string' ? customer.pincode.trim() : (typeof customer.pincode === 'number' ? String(customer.pincode) : '')
+  if (!/^\d{6}$/.test(pincode)) {
+    return res.status(400).json({ error: 'Customer pincode must be exactly 6 digits.' })
+  }
+
+  if (!Array.isArray(items) || items.length === 0) {
+    return res.status(400).json({ error: 'Cart is empty.' })
+  }
+
   try {
     const razorpayKeyId = process.env.RAZORPAY_KEY_ID
     const razorpayKeySecret = process.env.RAZORPAY_KEY_SECRET
@@ -43,15 +75,6 @@ export default async function handler(req, res) {
       key_id: razorpayKeyId,
       key_secret: razorpayKeySecret,
     })
-
-    const { customer, items } = req.body || {}
-
-    if (!customer?.name || !customer?.phone || !customer?.address || !customer?.city || !customer?.pincode) {
-      return res.status(400).json({ error: 'Missing customer details.' })
-    }
-    if (!Array.isArray(items) || items.length === 0) {
-      return res.status(400).json({ error: 'Cart is empty.' })
-    }
 
     // Recompute the total from the DATABASE price, not whatever the browser sent —
     // this is what stops someone from editing the price in devtools before paying.
@@ -90,12 +113,12 @@ export default async function handler(req, res) {
     const { data: order, error: orderError } = await supabaseAdmin
       .from('orders')
       .insert({
-        customer_name: customer.name,
-        phone: customer.phone,
-        email: customer.email || null,
-        address: customer.address,
-        city: customer.city,
-        pincode: customer.pincode,
+        customer_name: customer.name.trim(),
+        phone,
+        email: (typeof customer.email === 'string' && customer.email.trim()) ? customer.email.trim() : null,
+        address: customer.address.trim(),
+        city: customer.city.trim(),
+        pincode,
         items: verifiedItems,
         total,
         payment_status: 'pending',
