@@ -29,9 +29,9 @@ export default function Navbar() {
 
           <Link to="/" className="flex items-center">
             <img
-              src="/main-logo.png"
+              src="/logooo-removebg-preview.png"
               alt="Garba Vastra"
-              className="h-14 sm:h-16 md:h-18 w-auto object-contain mix-blend-multiply"
+              className="h-14 sm:h-16 md:h-18 w-auto object-contain"
             />
           </Link>
         </div>
