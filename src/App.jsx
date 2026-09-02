@@ -1,6 +1,7 @@
-import { Routes, Route, ScrollRestoration } from 'react-router-dom'
+import { Routes, Route } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
+import ScrollToTop from './components/ScrollToTop'
 import Home from './pages/Home'
 import ProductDetail from './pages/ProductDetail'
 import Cart from './pages/Cart'
@@ -16,7 +17,7 @@ import ProtectedRoute from './components/ProtectedRoute'
 export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
-      <ScrollRestoration />
+      <ScrollToTop />
       <Navbar />
       <main className="flex-1">
         <Routes>
