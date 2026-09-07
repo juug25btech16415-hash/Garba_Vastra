@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Navigate, useLocation } from 'react-router-dom'
+import { Navigate, useLocation, Outlet } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
 
 const ADMIN_EMAIL = 'vritika110@gmail.com'
@@ -35,13 +35,13 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
-  if (!session) {
+  if (!session || !session.user) {
     return <Navigate to="/admin/login" state={{ from: location }} replace />
   }
 
-  if (session.user?.email !== ADMIN_EMAIL) {
+  if (session.user.email !== ADMIN_EMAIL) {
     return <Navigate to="/" replace />
   }
 
-  return children
+  return children ? children : <Outlet />
 }
