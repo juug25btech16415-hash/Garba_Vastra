@@ -1,31 +1,10 @@
-import { useEffect, useState } from 'react'
-import { Navigate, useLocation, Outlet } from 'react-router-dom'
-import { supabase } from '../lib/supabaseClient'
+import { Navigate, Outlet } from 'react-router-dom'
+import { useAuth } from '../lib/AuthContext'
 
 const ADMIN_EMAIL = 'vritika110@gmail.com'
 
 export default function ProtectedRoute({ children }) {
-  const [loading, setLoading] = useState(true)
-  const [session, setSession] = useState(null)
-  const location = useLocation()
-
-  useEffect(() => {
-    // Check initial session
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session)
-      setLoading(false)
-    })
-
-    // Listen to real-time auth state changes (sign-in, sign-out, token refresh)
-    const {
-      data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
-      setSession(session)
-      setLoading(false)
-    })
-
-    return () => subscription.unsubscribe()
-  }, [])
+  const { user, loading } = useAuth()
 
   if (loading) {
     return (
@@ -35,12 +14,12 @@ export default function ProtectedRoute({ children }) {
     )
   }
 
-  if (!session || !session.user) {
-    return <Navigate to="/admin/login" state={{ from: location }} replace />
+  if (!user) {
+    return <Navigate replace to="/admin/login" />
   }
 
-  if (session.user.email !== ADMIN_EMAIL) {
-    return <Navigate to="/" replace />
+  if (user.email !== ADMIN_EMAIL) {
+    return <Navigate replace to="/" />
   }
 
   return children ? children : <Outlet />

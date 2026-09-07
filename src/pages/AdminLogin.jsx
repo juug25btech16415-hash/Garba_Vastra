@@ -1,13 +1,26 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Navigate } from 'react-router-dom'
 import { supabase } from '../lib/supabaseClient'
+import { useAuth } from '../lib/AuthContext'
 
 export default function AdminLogin() {
   const navigate = useNavigate()
+  const { user, loading: authLoading } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
+
+  if (authLoading) {
+    return null
+  }
+
+  if (user) {
+    if (user.email === 'vritika110@gmail.com') {
+      return <Navigate replace to="/admin" />
+    }
+    return <Navigate replace to="/" />
+  }
 
   async function handleLogin(e) {
     e.preventDefault()
