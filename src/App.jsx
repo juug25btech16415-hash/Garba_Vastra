@@ -40,7 +40,7 @@ export default function App() {
           <Route path="/order-confirmed/:id" element={<OrderConfirmed />} />
           <Route path="/track" element={<OrderTracking />} />
           <Route path="/privacy-policy" element={<PrivacyPolicy />} />
-          <Route path="/dashboard" element={<ProtectedRoute><CustomerDashboard /></ProtectedRoute>} />
+          <Route path="/dashboard" element={<CustomerDashboard />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"
