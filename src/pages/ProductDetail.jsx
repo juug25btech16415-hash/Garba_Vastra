@@ -5,7 +5,7 @@ import { useCart } from '../lib/CartContext'
 import { useWishlist } from '../lib/WishlistContext'
 import { SHIPPING_FEE, FREE_SHIPPING_THRESHOLD } from '../lib/shipping'
 
-function Gallery({ images, name }) {
+function Gallery({ media = [], name, poster }) {
   const scrollerRef = useRef(null)
   const [activeIndex, setActiveIndex] = useState(0)
 
@@ -31,46 +31,70 @@ function Gallery({ images, name }) {
         className="aspect-[3/4] rounded-lg overflow-x-auto flex snap-x snap-mandatory scroll-smooth bg-teal/5 border border-maroon/10"
         style={{ scrollbarWidth: 'none' }}
       >
-        {images.map((src, i) => (
-          <img
-            key={i}
-            src={src}
-            alt={`${name || 'Product'} — photo ${i + 1}`}
-            loading="lazy"
-            className="w-full h-full object-cover flex-shrink-0 snap-center"
-          />
-        ))}
+        {media.map((item, i) =>
+          item.type === 'video' ? (
+            <div
+              key={`video-${i}`}
+              className="w-full h-full flex-shrink-0 snap-center bg-black/95 flex items-center justify-center relative overflow-hidden"
+            >
+              <video
+                src={item.src}
+                poster={poster}
+                controls
+                playsInline
+                preload="metadata"
+                className="w-full h-full object-contain"
+              />
+            </div>
+          ) : (
+            <img
+              key={`img-${i}`}
+              src={item.src}
+              alt={`${name || 'Product'} — photo ${i + 1}`}
+              loading="lazy"
+              className="w-full h-full object-cover flex-shrink-0 snap-center"
+            />
+          )
+        )}
       </div>
 
-      {images.length > 1 && (
+      {media.length > 1 && (
         <>
           <button
             onClick={() => scrollToIndex(Math.max(0, activeIndex - 1))}
             disabled={activeIndex === 0}
-            aria-label="Previous photo"
-            className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-0"
+            aria-label="Previous media"
+            className="absolute left-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-0 z-10"
           >
             ←
           </button>
           <button
-            onClick={() => scrollToIndex(Math.min(images.length - 1, activeIndex + 1))}
-            disabled={activeIndex === images.length - 1}
-            aria-label="Next photo"
-            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-0"
+            onClick={() => scrollToIndex(Math.min(media.length - 1, activeIndex + 1))}
+            disabled={activeIndex === media.length - 1}
+            aria-label="Next media"
+            className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-ivory/90 backdrop-blur flex items-center justify-center shadow-sm hover:scale-110 transition-transform disabled:opacity-0 z-10"
           >
             →
           </button>
 
-          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
-            {images.map((_, i) => (
+          <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 bg-ivory/90 backdrop-blur px-2.5 py-1 rounded-full shadow-sm z-10">
+            {media.map((item, i) => (
               <button
                 key={i}
                 onClick={() => scrollToIndex(i)}
-                aria-label={`Go to photo ${i + 1}`}
-                className={`w-1.5 h-1.5 rounded-full transition-all ${
-                  i === activeIndex ? 'bg-maroon w-4' : 'bg-maroon/30'
+                aria-label={`Go to ${item.type === 'video' ? 'video' : `photo ${i + 1}`}`}
+                className={`transition-all flex items-center justify-center ${
+                  i === activeIndex
+                    ? item.type === 'video'
+                      ? 'bg-maroon text-ivory text-[10px] px-2 py-0.5 rounded-full font-semibold'
+                      : 'bg-maroon w-4 h-1.5 rounded-full'
+                    : item.type === 'video'
+                    ? 'bg-maroon/30 hover:bg-maroon/60 text-maroon text-[10px] px-1.5 py-0.5 rounded-full font-semibold'
+                    : 'bg-maroon/30 hover:bg-maroon/60 w-1.5 h-1.5 rounded-full'
                 }`}
-              />
+              >
+                {item.type === 'video' ? '▶ Video' : ''}
+              </button>
             ))}
           </div>
         </>
@@ -119,6 +143,21 @@ export default function ProductDetail() {
   const stock = product.stock ?? 0
   const isOut = stock <= 0
 
+  const mediaItems = []
+  if (product.image_url) {
+    mediaItems.push({ type: 'image', src: product.image_url })
+  }
+  if (product.video_url) {
+    mediaItems.push({ type: 'video', src: product.video_url })
+  }
+  if (product.images && product.images.length > 0) {
+    product.images.forEach((url) => {
+      if (url && url !== product.image_url) {
+        mediaItems.push({ type: 'image', src: url })
+      }
+    })
+  }
+
   function handleAdd() {
     addItem(product, size, color, 1)
     setAdded(true)
@@ -129,8 +168,9 @@ export default function ProductDetail() {
     <div className="max-w-6xl mx-auto px-5 py-10 grid md:grid-cols-2 gap-10">
       <div className="relative">
         <Gallery
-          images={[product.image_url, ...(product.images || [])].filter(Boolean)}
+          media={mediaItems}
           name={product.name}
+          poster={product.image_url}
         />
         <button
           onClick={() => toggle(product.id)}

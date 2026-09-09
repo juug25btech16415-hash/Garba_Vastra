@@ -13,6 +13,7 @@ const EMPTY_FORM = {
   stock: '',
   is_active: true,
   image_url: '',
+  video_url: '',
   extraImages: [], // existing gallery image URLs (when editing)
   specs: [{ key: '', value: '' }],
 }
@@ -26,8 +27,10 @@ export default function Admin() {
   const [orders, setOrders] = useState([])
   const [form, setForm] = useState(EMPTY_FORM)
   const [imageFile, setImageFile] = useState(null)
+  const [videoFile, setVideoFile] = useState(null)
   const [extraImageFiles, setExtraImageFiles] = useState([]) // newly picked files, not yet uploaded
   const [saving, setSaving] = useState(false)
+  const [savingStep, setSavingStep] = useState('')
   const [message, setMessage] = useState('')
 
   useEffect(() => {
@@ -94,13 +97,16 @@ export default function Admin() {
       stock: p.stock,
       is_active: p.is_active,
       image_url: p.image_url,
+      video_url: p.video_url || '',
       extraImages: p.images || [],
       specs: specEntries.length > 0
         ? specEntries.map(([key, value]) => ({ key, value }))
         : [{ key: '', value: '' }],
     })
     setImageFile(null)
+    setVideoFile(null)
     setExtraImageFiles([])
+    setSavingStep('')
     window.scrollTo({ top: 0, behavior: 'smooth' })
   }
 
@@ -115,19 +121,24 @@ export default function Admin() {
   function resetForm() {
     setForm(EMPTY_FORM)
     setImageFile(null)
+    setVideoFile(null)
     setExtraImageFiles([])
+    setSavingStep('')
   }
 
   async function handleSaveProduct(e) {
     e.preventDefault()
     setSaving(true)
     setMessage('')
+    setSavingStep('Preparing product...')
 
     try {
       let imageUrl = form.image_url
+      let videoUrl = form.video_url
 
-      // If a new file was chosen, upload it to Supabase Storage first
+      // If a new image file was chosen, upload it to Supabase Storage first
       if (imageFile) {
+        setSavingStep('Uploading main photo…')
         const ext = imageFile.name.split('.').pop()
         const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
         const { error: uploadError } = await supabase.storage
@@ -140,19 +151,39 @@ export default function Admin() {
 
       if (!imageUrl) throw new Error('Please add a main image (upload a file or paste a URL).')
 
+      // If a new video file was chosen, upload it to Supabase Storage
+      if (videoFile) {
+        setSavingStep('Uploading product video (this may take a few moments)…')
+        const ext = videoFile.name.split('.').pop()
+        const path = `video-${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+        const { error: uploadError } = await supabase.storage
+          .from('product-images')
+          .upload(path, videoFile, {
+            contentType: videoFile.type || 'video/mp4',
+            upsert: false,
+          })
+        if (uploadError) throw uploadError
+        const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(path)
+        videoUrl = publicUrlData.publicUrl
+      }
+
       // Upload any newly-picked gallery photos, then merge with any that
       // already existed on this product (from a previous edit)
       const newlyUploadedUrls = []
-      for (const file of extraImageFiles) {
-        const ext = file.name.split('.').pop()
-        const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
-        const { error: uploadError } = await supabase.storage.from('product-images').upload(path, file)
-        if (uploadError) throw uploadError
-        const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(path)
-        newlyUploadedUrls.push(publicUrlData.publicUrl)
+      if (extraImageFiles.length > 0) {
+        setSavingStep(`Uploading ${extraImageFiles.length} additional photo(s)…`)
+        for (const file of extraImageFiles) {
+          const ext = file.name.split('.').pop()
+          const path = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+          const { error: uploadError } = await supabase.storage.from('product-images').upload(path, file)
+          if (uploadError) throw uploadError
+          const { data: publicUrlData } = supabase.storage.from('product-images').getPublicUrl(path)
+          newlyUploadedUrls.push(publicUrlData.publicUrl)
+        }
       }
       const images = [...form.extraImages, ...newlyUploadedUrls]
 
+      setSavingStep('Saving product details…')
       const specifications = {}
       form.specs.forEach(({ key, value }) => {
         if (key.trim() && value.trim()) specifications[key.trim()] = value.trim()
@@ -168,6 +199,7 @@ export default function Admin() {
         stock: Number(form.stock),
         is_active: form.is_active,
         image_url: imageUrl,
+        video_url: videoUrl ? videoUrl.trim() : null,
         images,
         specifications,
       }
@@ -188,6 +220,7 @@ export default function Admin() {
       setMessage('Error: ' + err.message)
     } finally {
       setSaving(false)
+      setSavingStep('')
     }
   }
 
@@ -359,6 +392,58 @@ export default function Admin() {
                 )}
               </div>
 
+              <div>
+                <label className="block text-sm font-medium mb-1.5">
+                  Product video (optional — animated preview on card & detail gallery)
+                </label>
+                <input
+                  type="file"
+                  accept="video/mp4,video/webm,video/quicktime"
+                  onChange={(e) => {
+                    const file = e.target.files[0]
+                    setVideoFile(file || null)
+                  }}
+                  className="text-sm block w-full file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-teal/10 file:text-teal hover:file:bg-teal/20 cursor-pointer"
+                />
+                <p className="text-xs text-ink/50 mt-1">or paste a video URL below instead</p>
+                <input
+                  placeholder="Video URL (e.g. .mp4, .webm, or Supabase public URL)"
+                  value={form.video_url}
+                  onChange={(e) => update('video_url', e.target.value)}
+                  className="w-full mt-1.5 border border-maroon/20 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-maroon/40 text-sm"
+                />
+
+                {(videoFile || form.video_url) && (
+                  <div className="mt-3 p-3 bg-teal/5 rounded-md border border-teal/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-xs font-medium text-teal flex items-center gap-1.5">
+                        <span className="inline-block w-2 h-2 rounded-full bg-teal animate-pulse" />
+                        {videoFile
+                          ? `New video selected: ${videoFile.name} (${(videoFile.size / (1024 * 1024)).toFixed(1)} MB)`
+                          : 'Current video attached'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setVideoFile(null)
+                          update('video_url', '')
+                        }}
+                        className="text-xs text-red-600 hover:underline"
+                      >
+                        Remove video
+                      </button>
+                    </div>
+                    <video
+                      src={videoFile ? URL.createObjectURL(videoFile) : form.video_url}
+                      controls
+                      playsInline
+                      muted
+                      className="w-full max-h-48 rounded bg-black object-contain"
+                    />
+                  </div>
+                )}
+              </div>
+
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"
@@ -407,18 +492,26 @@ export default function Admin() {
                 </button>
               </div>
 
-              {message && <p className="text-sm text-maroon">{message}</p>}
+              {saving && savingStep && (
+                <div className="p-3 bg-maroon/5 border border-maroon/15 rounded-md flex items-center gap-2 text-sm text-maroon">
+                  <div className="w-4 h-4 border-2 border-maroon/30 border-t-maroon rounded-full animate-spin" />
+                  <span>{savingStep}</span>
+                </div>
+              )}
+
+              {message && <p className="text-sm text-maroon font-medium">{message}</p>}
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="submit"
                   disabled={saving}
-                  className="flex-1 py-3 rounded-md bg-maroon text-ivory font-medium hover:bg-maroon-dark transition-colors disabled:opacity-50"
+                  className="flex-1 py-3 rounded-md bg-maroon text-ivory font-medium hover:bg-maroon-dark transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
                 >
-                  {saving ? 'Saving…' : form.id ? 'Save changes' : 'Add piece'}
+                  {saving && <div className="w-4 h-4 border-2 border-ivory/30 border-t-ivory rounded-full animate-spin" />}
+                  {saving ? (savingStep || 'Saving…') : form.id ? 'Save changes' : 'Add piece'}
                 </button>
                 {form.id && (
-                  <button type="button" onClick={resetForm} className="px-4 py-3 rounded-md border border-maroon/20 text-sm">
+                  <button type="button" onClick={resetForm} disabled={saving} className="px-4 py-3 rounded-md border border-maroon/20 text-sm hover:bg-maroon/5">
                     Cancel
                   </button>
                 )}
@@ -431,9 +524,23 @@ export default function Admin() {
             <div className="space-y-3 max-h-[720px] overflow-y-auto pr-1">
               {products.map((p) => (
                 <div key={p.id} className="flex gap-3 border border-maroon/10 rounded-md p-3">
-                  <img src={p.image_url} alt={p.name || 'Product'} loading="lazy" className="w-16 h-20 object-cover rounded bg-teal/5" />
+                  <div className="relative w-16 h-20 flex-shrink-0">
+                    <img src={p.image_url} alt={p.name || 'Product'} loading="lazy" className="w-full h-full object-cover rounded bg-teal/5" />
+                    {p.video_url && (
+                      <span className="absolute bottom-1 right-1 bg-black/70 text-ivory text-[10px] px-1 py-0.5 rounded flex items-center" title="Has video">
+                        ▶
+                      </span>
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium truncate">{p.name}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium truncate">{p.name}</p>
+                      {p.video_url && (
+                        <span className="bg-teal/10 text-teal text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                          Video
+                        </span>
+                      )}
+                    </div>
                     <p className="text-sm text-ink/60">₹{p.price} · Stock: {p.stock} {!p.is_active && '· Hidden'}</p>
                     <div className="flex gap-3 mt-1 text-xs">
                       <button onClick={() => editProduct(p)} className="text-teal hover:underline">Edit</button>
