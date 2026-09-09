@@ -18,6 +18,7 @@ create table if not exists products (
   price numeric not null check (price >= 0),
   image_url text not null,
   images text[] not null default '{}',
+  video_url text,
   category text default 'Chaniya Choli',
   sizes text[] default '{}',
   colors text[] default '{}',
@@ -98,12 +99,13 @@ create policy "Admins can update orders"
   to authenticated
   using (true);
 
--- 4. STORAGE BUCKET FOR PRODUCT PHOTOS (used by the admin upload form)
-insert into storage.buckets (id, name, public)
-values ('product-images', 'product-images', true)
-on conflict (id) do nothing;
+-- 4. STORAGE BUCKET FOR PRODUCT PHOTOS & VIDEOS (used by the admin upload form)
+insert into storage.buckets (id, name, public, allowed_mime_types)
+values ('product-images', 'product-images', true, array['image/*', 'video/mp4', 'video/webm', 'video/quicktime'])
+on conflict (id) do update set
+  allowed_mime_types = array['image/*', 'video/mp4', 'video/webm', 'video/quicktime'];
 
-create policy "Public can view product images"
+create policy "Public can view product images and videos"
   on storage.objects for select
   using (bucket_id = 'product-images');
 
