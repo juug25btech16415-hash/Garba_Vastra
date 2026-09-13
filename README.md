@@ -6,7 +6,7 @@ A chaniya choli storefront: guest browsing, live stock counts, Razorpay checkout
 - **Frontend:** React + Vite + Tailwind, deployed free on Vercel
 - **Database + Auth + Realtime + Image storage:** Supabase (free tier)
 - **Payments:** Razorpay
-- **Backend logic:** Two serverless functions in `/api`, run free on Vercel
+- **Backend logic:** Two serverless functions in `/api`, run free on Vercel.
 
 ## One-time setup
 
