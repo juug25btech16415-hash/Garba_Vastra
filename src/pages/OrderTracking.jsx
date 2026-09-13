@@ -57,6 +57,9 @@ export default function OrderTracking() {
     }
   }, [searchParams])
 
+  // UUID v4 regex — matches the standard 8-4-4-4-12 hex format
+  const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
   async function handleTrack(e) {
     if (e && e.preventDefault) {
       e.preventDefault()
@@ -68,24 +71,58 @@ export default function OrderTracking() {
     const trimmedPhone = phone.trim()
 
     if (!trimmedOrderId) {
-      setError('Please enter your Order ID.')
+      setError('Please enter your Order ID or Tracking Number.')
       return
     }
 
     setLoading(true)
 
     try {
-      // Look up the order directly from your database. (A Shiprocket edge
-      // function also exists in this project for real courier scan updates,
-      // but it needs SHIPROCKET_EMAIL/PASSWORD configured to work — until
-      // then this direct lookup is faster and won't silently fail.)
-      const { data: dbData, error: dbError } = await supabase.rpc('get_order_status', {
-        p_order_id: trimmedOrderId,
-        p_phone: trimmedPhone || '',
-      })
+      const isUUID = UUID_REGEX.test(trimmedOrderId)
+      let row = null
 
-      if (!dbError && dbData && dbData.length > 0) {
-        const row = dbData[0]
+      if (isUUID) {
+        // --- UUID input: use the secure RPC that looks up by orders.id ---
+        const { data: rpcData, error: rpcError } = await supabase.rpc('get_order_status', {
+          p_order_id: trimmedOrderId,
+          p_phone: trimmedPhone || '',
+        })
+
+        if (rpcError) {
+          // Swallow raw Postgres messages; surface a clean UI error instead
+          console.error('RPC error:', rpcError)
+          setError('Order or Tracking Number not found. Please check your details and try again.')
+          return
+        }
+
+        if (rpcData && rpcData.length > 0) {
+          row = rpcData[0]
+        }
+      } else {
+        // --- Non-UUID input: treat as Shiprocket AWB / tracking_id ---
+        // Query the orders table directly against tracking_id and awb_number.
+        // The RLS policy allows this for authenticated users (admin); for guests
+        // the query simply returns an empty result set rather than an error.
+        const { data: awbData, error: awbError } = await supabase
+          .from('orders')
+          .select(
+            'order_status, payment_status, tracking_id, tracking_url, awb_number, created_at, total'
+          )
+          .or(`tracking_id.eq.${trimmedOrderId},awb_number.eq.${trimmedOrderId}`)
+          .limit(1)
+
+        if (awbError) {
+          console.error('AWB lookup error:', awbError)
+          setError('Order or Tracking Number not found. Please check your details and try again.')
+          return
+        }
+
+        if (awbData && awbData.length > 0) {
+          row = awbData[0]
+        }
+      }
+
+      if (row) {
         setTrackingData({
           success: true,
           order_id: trimmedOrderId,
@@ -105,17 +142,13 @@ export default function OrderTracking() {
             },
           ],
         })
-        setLoading(false)
-        return
+      } else {
+        setError('Order or Tracking Number not found. Please check your details and try again.')
       }
-
-      setError(
-        dbError?.message ||
-          "Couldn't find an order with that ID and phone number. Please double-check both."
-      )
     } catch (err) {
       console.error('Tracking lookup error:', err)
-      setError(err?.message || 'Something went wrong while fetching tracking details. Please try again later.')
+      // Replace any raw database/network error with a clean user-facing message
+      setError('Order or Tracking Number not found. Please check your details and try again.')
     } finally {
       setLoading(false)
     }
@@ -135,7 +168,7 @@ export default function OrderTracking() {
           Track Your Order
         </h1>
         <p className="text-ink/70 text-sm sm:text-base max-w-md mx-auto">
-          Enter your Order ID and phone number to view live shipment updates from our courier partner.
+          Enter your Order ID or courier AWB / Tracking Number to view live shipment updates.
         </p>
       </div>
 
@@ -144,13 +177,13 @@ export default function OrderTracking() {
         <form onSubmit={handleTrack} className="space-y-4">
           <div>
             <label htmlFor="orderId" className="block text-xs font-semibold uppercase tracking-wider text-ink/70 mb-1.5">
-              Order ID <span className="text-maroon">*</span>
+              Order ID or Tracking / AWB Number <span className="text-maroon">*</span>
             </label>
             <input
               id="orderId"
               type="text"
               required
-              placeholder="e.g. 550e8400-e29b-41d4-a716-446655440000"
+              placeholder="Order ID (UUID) or AWB / Tracking Number"
               value={orderId}
               onChange={(e) => setOrderId(e.target.value)}
               className="w-full bg-ivory/50 border border-maroon/20 rounded-xl px-4 py-3 text-ink placeholder:text-ink/30 focus:outline-none focus:ring-2 focus:ring-maroon/30 focus:border-maroon transition-all"
