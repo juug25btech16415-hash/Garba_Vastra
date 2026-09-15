@@ -1,51 +1,46 @@
-# Garba Vastra
+# 💃 Garba Vastra
 
-A chaniya choli storefront: guest browsing, live stock counts, Razorpay checkout, order tracking, and an admin dashboard to manage products and orders.
+![Banner](https://via.placeholder.com/1200x300/800020/FFFFFF?text=Garba+Vastra+-+Bridging+Tradition+with+Modern+Architecture)
 
-## Stack
-- **Frontend:** React + Vite + Tailwind, deployed free on Vercel
-- **Database + Auth + Realtime + Image storage:** Supabase (free tier)
-- **Payments:** Razorpay
-- **Backend logic:** Two serverless functions in `/api`, run free on Vercel.
+[![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](#)
+[![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
+[![Supabase](https://img.shields.io/badge/Supabase-3ECF8E?style=for-the-badge&logo=supabase&logoColor=white)](#)
+[![Vercel](https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](#)
 
-## One-time setup
+A full-stack e-commerce platform dedicated to bringing authentic, hand-embroidered Gujarati festive wear to a digital audience while directly supporting local artisans and small businesses. 
 
-1. **Database:** In Supabase → SQL Editor, run `supabase-schema.sql` (this replaces any earlier tables).
-2. **Admin login:** In Supabase → Authentication → Users → Add User, create your own login (the email/password you'll use at `/admin/login`).
-3. **Environment variables:** Copy `.env.example` to `.env` and fill in the real values for local dev. On Vercel, add the same variables under Project Settings → Environment Variables (see below — some are frontend-safe, some must stay server-only).
-4. **Install & run locally:**
-   ```
-   npm install
-   npm run dev
-   ```
+---
 
-## Environment variables
+## 📑 Table of Contents
+* [Project Overview](#-project-overview)
+* [Tech Stack](#-tech-stack)
+* [System Flow](#-system-flow)
+* [Features & Database](#-features--database)
 
-| Variable | Where | Notes |
-|---|---|---|
-| `VITE_SUPABASE_URL` | Vercel + `.env` | Safe to expose |
-| `VITE_SUPABASE_ANON_KEY` | Vercel + `.env` | Safe to expose (this key only allows what RLS policies permit) |
-| `VITE_RAZORPAY_KEY_ID` | Vercel + `.env` | Safe to expose (public key) |
-| `SUPABASE_URL` | Vercel only | Same URL, used server-side |
-| `SUPABASE_SERVICE_ROLE_KEY` | Vercel only | **Secret.** Bypasses all security rules — never expose to the browser or commit it |
-| `RAZORPAY_KEY_ID` | Vercel only | Same as above, used server-side |
-| `RAZORPAY_KEY_SECRET` | Vercel only | **Secret.** Used to create orders and verify payment signatures |
+---
 
-## Deploying
+## 🌟 Project Overview
+Garba Vastra is engineered to handle the complete e-commerce lifecycle, from secure user browsing to physical order fulfillment. Developed as a solo initiative by a Computer Science Engineering student, it combines scalable web technologies with clean, responsive design to offer a seamless shopping experience for traditional Navratri outfits.
 
-1. Push this code to your GitHub repo.
-2. On vercel.com → Add New Project → Import your repo.
-3. Add all 7 environment variables above.
-4. Deploy. Vercel auto-detects Vite for the frontend and turns `/api/*.js` into serverless functions.
+---
 
-## Going live with real payments
+## 🛠️ Tech Stack
 
-Right now `RAZORPAY_KEY_ID`/`SECRET` should be your **Test Mode** keys, so you can place test orders safely. When ready for real sales: finish Razorpay KYC, switch to **Live Mode** keys in the Razorpay dashboard, and swap the 4 Razorpay-related env vars on Vercel to the live versions.
+| Layer | Technology | Purpose |
+| :--- | :--- | :--- |
+| **Frontend** | React & Tailwind CSS | Responsive, dynamic UI and localized state management. |
+| **Backend & DB** | Supabase (PostgreSQL) | Secure relational data storage and user authentication. |
+| **Logistics** | Shiprocket API | Automated shipping integration and AWB tracking. |
+| **Deployment** | Vercel | Fast, global edge network hosting and CI/CD pipelines. |
 
-## Admin dashboard
+---
 
-Visit `/admin/login`, sign in, and you can:
-- Add products — by pasting an image URL **or** uploading a photo directly (stored in Supabase for free)
-- Edit price, stock, sizes, colors, visibility
-- One-click restock
-- View orders and update status / add courier tracking info, which customers see live at `/track`
+## 🔄 System Flow
+
+```mermaid
+graph TD;
+    A[Customer] -->|Browses & Orders| B(React Storefront)
+    B -->|Fetches Data| C[(Secure Database)]
+    C -->|Validates Identity| D{Admin Dashboard}
+    D -->|Fulfills Order| E[Logistics API]
+    E -->|Updates AWB Tracking| B
