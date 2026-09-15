@@ -1,6 +1,6 @@
 # 💃 Garba Vastra
+![Uploading logooo.png…]()
 
-![Banner](https://via.placeholder.com/1200x300/800020/FFFFFF?text=Garba+Vastra+-+Bridging+Tradition+with+Modern+Architecture)
 
 [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](#)
 [![Tailwind CSS](https://img.shields.io/badge/Tailwind_CSS-38B2AC?style=for-the-badge&logo=tailwind-css&logoColor=white)](#)
