@@ -29,6 +29,24 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
+      {/* Sitewide Navratri Rental Announcement Banner */}
+      <div
+        style={{
+          position: 'sticky',
+          top: 0,
+          zIndex: 9999,
+          backgroundColor: '#fef3c7',
+          borderBottom: '1px solid #fcd34d',
+          color: '#7c0a02',
+          fontSize: '0.875rem',
+          padding: '0.5rem 1rem',
+          textAlign: 'center',
+          fontWeight: 500,
+          letterSpacing: '0.01em',
+        }}
+      >
+        🪔 Exclusive Navratri Rental: Chaniya Choli rental available exclusively for Jain University students (Oct 9 – Oct 25)!
+      </div>
       <Navbar />
       <main className="flex-1">
         <Routes>
