@@ -32,7 +32,8 @@ export default function Checkout() {
   const { items, totalPrice, clearCart } = useCart()
   const { user, signInWithGoogle, signOut, updateUserProfile, loading: authLoading } = useAuth()
   const navigate = useNavigate()
-  const shipping = calcShipping(totalPrice)
+  const hasOnlyRentals = items.length > 0 && items.every((i) => i.isRental)
+  const shipping = hasOnlyRentals ? 0 : calcShipping(totalPrice)
   const grandTotal = totalPrice + shipping
 
   const [form, setForm] = useState({ name: '', phone: '', email: '', address: '', city: '', pincode: '' })
