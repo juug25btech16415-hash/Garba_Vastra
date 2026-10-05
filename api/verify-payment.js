@@ -74,10 +74,13 @@ export default async function handler(req, res) {
       if (fetchError || !order) {
         console.error('Order not found in Supabase:', fetchError)
       } else {
-        // Decrement stock for each item safely
+        const hasRentalItem = Array.isArray(order.items) && order.items.some((i) => i.isRental)
+
+        // Decrement stock for each non-rental item safely (rentals don't
+        // consume "stock" the same way — they're a date booking instead)
         if (Array.isArray(order.items)) {
           for (const item of order.items) {
-            if (item.productId) {
+            if (item.productId && !item.isRental) {
               const { error: stockError } = await supabaseAdmin.rpc('decrement_stock', {
                 p_product_id: item.productId,
                 p_qty: item.qty,
@@ -94,11 +97,26 @@ export default async function handler(req, res) {
           }
         }
 
-        // Update database to paid
-        await supabaseAdmin
+        // Update database to paid. For rentals, a unique database constraint
+        // blocks a second paid order on the same date — if that extremely
+        // rare race happens, flag it for manual review/refund instead of
+        // silently double-booking the one rental piece.
+        const { error: markPaidError } = await supabaseAdmin
           .from('orders')
           .update({ payment_status: 'paid', razorpay_payment_id: paymentId })
           .eq('id', internalOrderId)
+
+        if (markPaidError) {
+          console.error('Could not mark rental order paid (likely a date conflict):', markPaidError)
+          await supabaseAdmin
+            .from('orders')
+            .update({ order_status: 'needs_review', razorpay_payment_id: paymentId })
+            .eq('id', internalOrderId)
+          return res.status(200).json({
+            success: true,
+            warning: 'That rental date was just taken by someone else — this order needs manual review and a refund.',
+          })
+        }
 
         // Shiprocket Order Creation Automation
         const shiprocketEmail = process.env.SHIPROCKET_EMAIL
@@ -108,7 +126,9 @@ export default async function handler(req, res) {
           process.env.SHIPROCKET_PICKUP_NICKNAME ||
           'Primary'
 
-        if (!shiprocketEmail || !shiprocketPassword) {
+        if (hasRentalItem) {
+          console.log('Skipping Shiprocket automation: order is a rental, picked up in person.')
+        } else if (!shiprocketEmail || !shiprocketPassword) {
           console.error('Shiprocket credentials missing from environment (SHIPROCKET_EMAIL or SHIPROCKET_PASSWORD not configured).')
         } else {
           try {

@@ -16,6 +16,13 @@ const EMPTY_FORM = {
   video_url: '',
   extraImages: [], // existing gallery image URLs (when editing)
   specs: [{ key: '', value: '' }],
+  is_rental: false,
+  rental_price: '600',
+  rental_deposit: '50',
+  rental_start_date: '',
+  rental_end_date: '',
+  rental_return_hours: '24',
+  rental_eligibility: 'Open only to Jain College students.',
 }
 
 export default function Admin() {
@@ -102,6 +109,13 @@ export default function Admin() {
       specs: specEntries.length > 0
         ? specEntries.map(([key, value]) => ({ key, value }))
         : [{ key: '', value: '' }],
+      is_rental: p.is_rental || false,
+      rental_price: p.rental_price ?? '600',
+      rental_deposit: p.rental_deposit ?? '50',
+      rental_start_date: p.rental_start_date || '',
+      rental_end_date: p.rental_end_date || '',
+      rental_return_hours: p.rental_return_hours ?? '24',
+      rental_eligibility: p.rental_eligibility || 'Open only to Jain College students.',
     })
     setImageFile(null)
     setVideoFile(null)
@@ -202,6 +216,13 @@ export default function Admin() {
         video_url: videoUrl ? videoUrl.trim() : null,
         images,
         specifications,
+        is_rental: form.is_rental,
+        rental_price: form.is_rental ? Number(form.rental_price) : null,
+        rental_deposit: form.is_rental ? Number(form.rental_deposit) : null,
+        rental_start_date: form.is_rental ? form.rental_start_date || null : null,
+        rental_end_date: form.is_rental ? form.rental_end_date || null : null,
+        rental_return_hours: form.is_rental ? Number(form.rental_return_hours) : 24,
+        rental_eligibility: form.is_rental ? form.rental_eligibility : null,
       }
 
       if (form.id) {
@@ -453,6 +474,81 @@ export default function Admin() {
                 Visible on the shop
               </label>
 
+              <div className="border border-marigold/40 bg-marigold/5 rounded-md p-4">
+                <label className="flex items-center gap-2 text-sm font-medium">
+                  <input
+                    type="checkbox"
+                    checked={form.is_rental}
+                    onChange={(e) => update('is_rental', e.target.checked)}
+                  />
+                  This is a rental item (not for sale — booked by date, not bought)
+                </label>
+
+                {form.is_rental && (
+                  <div className="mt-3 space-y-3">
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs text-ink/60 mb-1">Rental price (₹)</label>
+                        <input
+                          type="number"
+                          value={form.rental_price}
+                          onChange={(e) => update('rental_price', e.target.value)}
+                          className="w-full border border-maroon/20 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon/40"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-ink/60 mb-1">Refundable deposit (₹)</label>
+                        <input
+                          type="number"
+                          value={form.rental_deposit}
+                          onChange={(e) => update('rental_deposit', e.target.value)}
+                          className="w-full border border-maroon/20 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon/40"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs text-ink/60 mb-1">Available from</label>
+                        <input
+                          type="date"
+                          value={form.rental_start_date}
+                          onChange={(e) => update('rental_start_date', e.target.value)}
+                          className="w-full border border-maroon/20 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon/40"
+                        />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs text-ink/60 mb-1">Available until</label>
+                        <input
+                          type="date"
+                          value={form.rental_end_date}
+                          onChange={(e) => update('rental_end_date', e.target.value)}
+                          className="w-full border border-maroon/20 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon/40"
+                        />
+                      </div>
+                      <div className="w-32">
+                        <label className="block text-xs text-ink/60 mb-1">Return within (hrs)</label>
+                        <input
+                          type="number"
+                          value={form.rental_return_hours}
+                          onChange={(e) => update('rental_return_hours', e.target.value)}
+                          className="w-full border border-maroon/20 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon/40"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs text-ink/60 mb-1">Eligibility notice (shown at the top of the product page)</label>
+                      <input
+                        value={form.rental_eligibility}
+                        onChange={(e) => update('rental_eligibility', e.target.value)}
+                        className="w-full border border-maroon/20 rounded-md px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-maroon/40"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+
               <div>
                 <label className="block text-sm font-medium mb-1.5">
                   Details (Product Type, Occasion, Fabric, Neck Type, etc.)
@@ -540,8 +636,20 @@ export default function Admin() {
                           Video
                         </span>
                       )}
+                      {p.is_rental && (
+                        <span className="bg-marigold/20 text-maroon text-[10px] font-semibold px-1.5 py-0.5 rounded">
+                          RENTAL
+                        </span>
+                      )}
                     </div>
-                    <p className="text-sm text-ink/60">₹{p.price} · Stock: {p.stock} {!p.is_active && '· Hidden'}</p>
+                    {p.is_rental ? (
+                      <p className="text-sm text-ink/60">
+                        ₹{p.rental_price} + ₹{p.rental_deposit} deposit · {p.rental_start_date} to {p.rental_end_date}
+                        {!p.is_active && ' · Hidden'}
+                      </p>
+                    ) : (
+                      <p className="text-sm text-ink/60">₹{p.price} · Stock: {p.stock} {!p.is_active && '· Hidden'}</p>
+                    )}
                     <div className="flex gap-3 mt-1 text-xs">
                       <button onClick={() => editProduct(p)} className="text-teal hover:underline">Edit</button>
                       <button onClick={() => quickRestock(p.id, p.stock)} className="text-teal hover:underline">+ Restock</button>
@@ -575,6 +683,11 @@ export default function Admin() {
                   }`}>
                     {o.payment_status}
                   </span>
+                  {o.rental_date && (
+                    <span className="block mt-1 text-xs font-semibold px-2.5 py-1 rounded-full bg-marigold/20 text-maroon">
+                      RENTAL · {new Date(o.rental_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -582,33 +695,56 @@ export default function Admin() {
                 {(o.items || []).map((it, idx) => (
                   <p key={idx}>
                     {it.qty} × {it.name} {it.size && `(${it.size}`}{it.color && `, ${it.color}`}{it.size && ')'}
+                    {it.isRental && ` — rental ₹${it.rentalPrice} + ₹${it.rentalDeposit} deposit`}
                   </p>
                 ))}
               </div>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2">
-                <select
-                  value={o.order_status}
-                  onChange={(e) => updateOrder(o.id, { order_status: e.target.value })}
-                  className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm"
-                >
-                  {['placed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'needs_review'].map((s) => (
-                    <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-                  ))}
-                </select>
-                <input
-                  placeholder="Tracking ID"
-                  defaultValue={o.tracking_id || ''}
-                  onBlur={(e) => updateOrder(o.id, { tracking_id: e.target.value })}
-                  className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm w-36"
-                />
-                <input
-                  placeholder="Tracking URL (courier link)"
-                  defaultValue={o.tracking_url || ''}
-                  onBlur={(e) => updateOrder(o.id, { tracking_url: e.target.value })}
-                  className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm flex-1 min-w-[180px]"
-                />
-              </div>
+              {o.rental_date ? (
+                <div className="mt-3 flex flex-wrap items-center gap-3">
+                  <select
+                    value={o.order_status}
+                    onChange={(e) => updateOrder(o.id, { order_status: e.target.value })}
+                    className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm"
+                  >
+                    {['placed', 'picked_up', 'returned', 'cancelled'].map((s) => (
+                      <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                    ))}
+                  </select>
+                  <label className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={o.deposit_refunded || false}
+                      onChange={(e) => updateOrder(o.id, { deposit_refunded: e.target.checked })}
+                    />
+                    ₹50 deposit refunded to customer
+                  </label>
+                </div>
+              ) : (
+                <div className="mt-3 flex flex-wrap items-center gap-2">
+                  <select
+                    value={o.order_status}
+                    onChange={(e) => updateOrder(o.id, { order_status: e.target.value })}
+                    className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm"
+                  >
+                    {['placed', 'packed', 'shipped', 'out_for_delivery', 'delivered', 'cancelled', 'needs_review'].map((s) => (
+                      <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+                    ))}
+                  </select>
+                  <input
+                    placeholder="Tracking ID"
+                    defaultValue={o.tracking_id || ''}
+                    onBlur={(e) => updateOrder(o.id, { tracking_id: e.target.value })}
+                    className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm w-36"
+                  />
+                  <input
+                    placeholder="Tracking URL (courier link)"
+                    defaultValue={o.tracking_url || ''}
+                    onBlur={(e) => updateOrder(o.id, { tracking_url: e.target.value })}
+                    className="border border-maroon/20 rounded-md px-3 py-1.5 text-sm flex-1 min-w-[180px]"
+                  />
+                </div>
+              )}
             </div>
           ))}
         </div>
