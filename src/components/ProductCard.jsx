@@ -48,10 +48,16 @@ export default function ProductCard({ product }) {
             <span className="text-ivory font-display text-lg tracking-wide">Sold out</span>
           </div>
         )}
-        {isLow && !isOut && (
+        {product.is_rental ? (
           <span className="absolute top-3 left-3 bg-maroon text-ivory text-xs font-semibold px-2.5 py-1 rounded-full z-10">
-            Only {stock} left
+            Only 1 for rent
           </span>
+        ) : (
+          isLow && !isOut && (
+            <span className="absolute top-3 left-3 bg-maroon text-ivory text-xs font-semibold px-2.5 py-1 rounded-full z-10">
+              Only {stock} left
+            </span>
+          )
         )}
       </div>
       <div className="mt-3">
