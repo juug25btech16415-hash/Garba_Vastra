@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -13,6 +13,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
 import CustomerDashboard from './pages/CustomerDashboard'
+import Rentals from './pages/Rentals'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function ScrollToTop() {

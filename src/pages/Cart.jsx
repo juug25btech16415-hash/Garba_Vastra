@@ -5,7 +5,10 @@ import { SHIPPING_FEE, FREE_SHIPPING_THRESHOLD, calcShipping } from '../lib/ship
 export default function Cart() {
   const { items, updateQty, removeItem, totalPrice } = useCart()
   const navigate = useNavigate()
-  const shipping = calcShipping(totalPrice)
+  // Rentals are handed over and returned in person — no courier shipping applies
+  // when the cart is rental-only.
+  const hasOnlyRentals = items.length > 0 && items.every((i) => i.isRental)
+  const shipping = hasOnlyRentals ? 0 : calcShipping(totalPrice)
 
   if (items.length === 0) {
     return (
@@ -33,34 +36,50 @@ export default function Cart() {
 
       <div className="divide-y divide-maroon/10">
         {items.map((item) => (
-          <div key={`${item.productId}-${item.size}-${item.color}`} className="flex gap-4 py-5">
+          <div key={`${item.productId}-${item.size}-${item.color}-${item.rentalDate || ''}`} className="flex gap-4 py-5">
             <img src={item.image} alt={item.name || 'Cart item'} loading="lazy" className="w-20 h-24 object-cover rounded-md bg-teal/5" />
             <div className="flex-1">
+              {item.isRental && (
+                <span className="inline-block text-[11px] font-semibold tracking-wide text-teal bg-teal/10 rounded-full px-2 py-0.5 mb-1">
+                  RENTAL
+                </span>
+              )}
               <p className="font-display text-lg">{item.name}</p>
               <p className="text-sm text-ink/60">
                 {item.size && `Size ${item.size}`} {item.color && `· ${item.color}`}
               </p>
-              <p className="text-maroon font-medium mt-1">₹{item.price.toLocaleString('en-IN')}</p>
+
+              {item.isRental ? (
+                <div className="text-sm text-ink/70 mt-1 space-y-0.5">
+                  <p>Pickup date: <strong>{new Date(item.rentalDate).toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short' })}</strong></p>
+                  <p>Rental ₹{item.rentalPrice} + ₹{item.rentalDeposit} refundable deposit</p>
+                  <p className="text-maroon font-medium">₹{item.price.toLocaleString('en-IN')} due now</p>
+                </div>
+              ) : (
+                <p className="text-maroon font-medium mt-1">₹{item.price.toLocaleString('en-IN')}</p>
+              )}
 
               <div className="flex items-center gap-3 mt-3">
-                <div className="flex items-center border border-maroon/20 rounded-md">
-                  <button
-                    className="px-3 py-1 text-lg"
-                    onClick={() => updateQty(item.productId, item.size, item.color, item.qty - 1)}
-                  >
-                    −
-                  </button>
-                  <span className="px-3">{item.qty}</span>
-                  <button
-                    className="px-3 py-1 text-lg"
-                    onClick={() => updateQty(item.productId, item.size, item.color, item.qty + 1)}
-                  >
-                    +
-                  </button>
-                </div>
+                {!item.isRental && (
+                  <div className="flex items-center border border-maroon/20 rounded-md">
+                    <button
+                      className="px-3 py-1 text-lg"
+                      onClick={() => updateQty(item.productId, item.size, item.color, item.qty - 1)}
+                    >
+                      −
+                    </button>
+                    <span className="px-3">{item.qty}</span>
+                    <button
+                      className="px-3 py-1 text-lg"
+                      onClick={() => updateQty(item.productId, item.size, item.color, item.qty + 1)}
+                    >
+                      +
+                    </button>
+                  </div>
+                )}
                 <button
                   className="text-sm text-ink/50 hover:text-maroon"
-                  onClick={() => removeItem(item.productId, item.size, item.color)}
+                  onClick={() => removeItem(item.productId, item.size, item.color, item.rentalDate)}
                 >
                   Remove
                 </button>
@@ -76,10 +95,10 @@ export default function Cart() {
           <span>₹{totalPrice.toLocaleString('en-IN')}</span>
         </div>
         <div className="flex items-center justify-between text-sm text-ink/70">
-          <span>Shipping</span>
-          <span>{shipping === 0 ? 'Free' : `₹${shipping}`}</span>
+          <span>{hasOnlyRentals ? 'Shipping (in-person pickup)' : 'Shipping'}</span>
+          <span>{hasOnlyRentals ? 'N/A' : shipping === 0 ? 'Free' : `₹${shipping}`}</span>
         </div>
-        {shipping > 0 && (
+        {!hasOnlyRentals && shipping > 0 && (
           <p className="text-xs text-ink/45">
             Add ₹{(FREE_SHIPPING_THRESHOLD - totalPrice).toLocaleString('en-IN')} more for free shipping
           </p>
