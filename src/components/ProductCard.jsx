@@ -50,7 +50,7 @@ export default function ProductCard({ product }) {
         )}
         {product.is_rental ? (
           <span className="absolute top-3 left-3 bg-maroon text-ivory text-xs font-semibold px-2.5 py-1 rounded-full z-10">
-            Only 1 for rent
+            Rent only not sale
           </span>
         ) : (
           isLow && !isOut && (

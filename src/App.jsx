@@ -30,49 +30,15 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
-      {/* Sitewide Navratri Rental Announcement Banner */}
-      <div
-        style={{
-          position: 'sticky',
-          top: 0,
-          zIndex: 9999,
-          backgroundColor: '#fef3c7',
-          borderBottom: '1px solid #fcd34d',
-          color: '#7c0a02',
-          fontSize: '0.875rem',
-          padding: '0.5rem 1rem',
-          textAlign: 'center',
-          fontWeight: 500,
-          letterSpacing: '0.01em',
-        }}
-      >
-        <Link
-          to="/rentals"
-          style={{
-            color: 'inherit',
-            textDecoration: 'none',
-            display: 'inline-block',
-            borderRadius: '4px',
-            padding: '2px 6px',
-            transition: 'background-color 0.15s ease, text-decoration 0.15s ease',
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.backgroundColor = '#fde68a'
-            e.currentTarget.style.textDecoration = 'underline'
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.backgroundColor = 'transparent'
-            e.currentTarget.style.textDecoration = 'none'
-          }}
-        >
-          🪔 Exclusive Navratri Rental: Available ONLY for Jain University students (Oct 9 – Oct 25). Click here to book!
-        </Link>
+      {/* Announcement banner — block-level so it scrolls away naturally, never overlaps nav */}
+      <div className="w-full bg-maroon text-ivory text-xs sm:text-sm text-center py-2 px-4 font-medium tracking-wide">
+        🎉 Free shipping on orders above ₹999 &nbsp;·&nbsp; Limited Navratri collection — shop now!
       </div>
       <Navbar />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/rentals" element={<Rentals />} />
+          <Route path="/shop" element={<Home />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
