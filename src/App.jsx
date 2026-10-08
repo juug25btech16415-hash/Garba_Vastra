@@ -29,10 +29,15 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
+      {/* Announcement banner — block-level so it scrolls away naturally, never overlaps nav */}
+      <div className="w-full bg-maroon text-ivory text-xs sm:text-sm text-center py-2 px-4 font-medium tracking-wide">
+        🎉 Free shipping on orders above ₹999 &nbsp;·&nbsp; Limited Navratri collection — shop now!
+      </div>
       <Navbar />
       <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/shop" element={<Home />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
