@@ -109,7 +109,6 @@ export default function Admin() {
       specs: specEntries.length > 0
         ? specEntries.map(([key, value]) => ({ key: String(key), value: String(value) }))
         : [{ key: '', value: '' }],
-
       is_rental: p.is_rental || false,
       rental_price: p.rental_price ?? '600',
       rental_deposit: p.rental_deposit ?? '50',
