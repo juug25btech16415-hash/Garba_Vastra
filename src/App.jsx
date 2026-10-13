@@ -28,11 +28,20 @@ function ScrollToTop() {
 
 export default function App() {
   return (
-    <><div className="w-full bg-[#fceebb] text-maroon text-center py-2 px-4 text-sm font-medium border-b border-[#f5d796]">
-      <Link to="/rentals" className="block w-full hover:underline cursor-pointer">
-        🪔 Exclusive Navratri Rental: Available ONLY for Jain University students (Oct 9 – Oct 25). Click here to book!
-      </Link>
-    </div><Navbar /><main className="flex-1">
+    <div className="min-h-screen flex flex-col">
+      <ScrollToTop />
+
+      <div className="w-full bg-[#fceebb] text-maroon text-center py-2 px-4 text-sm font-medium border-b border-[#f5d796]">
+        <Link to="/rentals" className="block w-full hover:underline cursor-pointer">
+          🪔 Exclusive Navratri Rental: Available ONLY for Jain University students (Oct 9 – Oct 25). Click here to book!
+        </Link>
+      </div>
+
+      <Navbar />
+
+      <main className="flex-1">
+
+     
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/shop" element={<Home />} />
