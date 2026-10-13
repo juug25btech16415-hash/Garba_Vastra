@@ -107,8 +107,9 @@ export default function Admin() {
       video_url: p.video_url || '',
       extraImages: p.images || [],
       specs: specEntries.length > 0
-        ? specEntries.map(([key, value]) => ({ key, value }))
+        ? specEntries.map(([key, value]) => ({ key: String(key), value: String(value) }))
         : [{ key: '', value: '' }],
+
       is_rental: p.is_rental || false,
       rental_price: p.rental_price ?? '600',
       rental_deposit: p.rental_deposit ?? '50',
@@ -200,8 +201,11 @@ export default function Admin() {
       setSavingStep('Saving product details…')
       const specifications = {}
       form.specs.forEach(({ key, value }) => {
-        if (key.trim() && value.trim()) specifications[key.trim()] = value.trim()
+        const safeKey = String(key || '').trim()
+        const safeValue = String(value || '').trim()
+        if (safeKey && safeValue) specifications[safeKey] = safeValue
       })
+      
 
       const payload = {
         name: form.name,
