@@ -114,6 +114,8 @@ export default function ProductDetail() {
   const [size, setSize] = useState('')
   const [color, setColor] = useState('')
   const [added, setAdded] = useState(false)
+  const [rentalDate, setRentalDate] = useState('')
+  const [availability, setAvailability] = useState('idle') // idle | checking | available | taken | error
 
   useEffect(() => {
     async function load() {
@@ -137,6 +139,23 @@ export default function ProductDetail() {
     return () => supabase.removeChannel(channel)
   }, [id])
 
+  useEffect(() => {
+    if (!product?.is_rental || !rentalDate) {
+      setAvailability('idle')
+      return
+    }
+    let cancelled = false
+    setAvailability('checking')
+    supabase
+      .rpc('is_rental_date_available', { p_product_id: product.id, p_date: rentalDate })
+      .then(({ data, error }) => {
+        if (cancelled) return
+        if (error) setAvailability('error')
+        else setAvailability(data ? 'available' : 'taken')
+      })
+    return () => { cancelled = true }
+  }, [rentalDate, product?.id, product?.is_rental])
+
   if (loading) return <p className="text-center py-24 text-ink/50">Loading…</p>
   if (!product) return <p className="text-center py-24 text-ink/50">Piece not found.</p>
 
@@ -159,13 +178,32 @@ export default function ProductDetail() {
   }
 
   function handleAdd() {
-    addItem(product, size, color, 1)
+    if (product.is_rental) {
+      if (availability !== 'available') return
+      addItem(product, size, color, 1, {
+        rentalDate,
+        rentalPrice: product.rental_price,
+        rentalDeposit: product.rental_deposit,
+      })
+    } else {
+      addItem(product, size, color, 1)
+    }
     setAdded(true)
     navigate('/cart')
   }
 
   return (
-    <div className="max-w-6xl mx-auto px-5 py-10 grid md:grid-cols-2 gap-10">
+    <div className="max-w-6xl mx-auto px-5 pt-10 pb-10">
+      {product.is_rental && (
+        <div className="mb-6 rounded-lg border-2 border-marigold bg-marigold/10 px-5 py-4 text-center">
+          <p className="font-display text-lg text-maroon">🪔 Rental Exclusive</p>
+          <p className="text-sm text-ink/80 mt-1">
+            {product.rental_eligibility || 'Open only to Jain College students.'}
+          </p>
+        </div>
+      )}
+
+      <div className="grid md:grid-cols-2 gap-10">
       <div className="relative">
         <Gallery
           media={mediaItems}
@@ -189,14 +227,32 @@ export default function ProductDetail() {
         </Link>
         <h1 className="font-display text-4xl text-maroon mt-3">{product.name}</h1>
         <p className="text-ink/60 mt-1">{product.category}</p>
-        <p className="font-display text-2xl text-ink mt-4">₹{product.price.toLocaleString('en-IN')}</p>
 
-        {stock > 0 && stock <= 5 && (
+        {product.is_rental ? (
+          <div className="mt-4 border border-marigold/40 bg-marigold/5 rounded-lg p-4">
+            <div className="flex justify-between text-sm text-ink/70">
+              <span>Rental fee</span>
+              <span>₹{product.rental_price}</span>
+            </div>
+            <div className="flex justify-between text-sm text-ink/70 mt-1">
+              <span>Refundable security deposit</span>
+              <span>₹{product.rental_deposit}</span>
+            </div>
+            <div className="flex justify-between font-display text-xl text-maroon mt-2 pt-2 border-t border-marigold/30">
+              <span>Due today</span>
+              <span>₹{(Number(product.rental_price) + Number(product.rental_deposit)).toLocaleString('en-IN')}</span>
+            </div>
+          </div>
+        ) : (
+          <p className="font-display text-2xl text-ink mt-4">₹{product.price.toLocaleString('en-IN')}</p>
+        )}
+
+        {!product.is_rental && stock > 0 && stock <= 5 && (
           <p className="mt-2 inline-block text-sm font-semibold text-maroon bg-maroon/10 px-3 py-1 rounded-full">
             Only {stock} left — updates live as others buy
           </p>
         )}
-        {isOut && (
+        {!product.is_rental && isOut && (
           <p className="mt-2 inline-block text-sm font-semibold text-ink/60 bg-ink/10 px-3 py-1 rounded-full">
             Currently sold out
           </p>
@@ -259,17 +315,59 @@ export default function ProductDetail() {
           </div>
         )}
 
+        {product.is_rental && (
+          <div className="mt-6">
+            <p className="text-sm font-medium mb-2">Pickup date</p>
+            <input
+              type="date"
+              value={rentalDate}
+              min={product.rental_start_date}
+              max={product.rental_end_date}
+              onChange={(e) => setRentalDate(e.target.value)}
+              className="border border-maroon/20 rounded-md px-4 py-2.5 focus:outline-none focus:ring-2 focus:ring-maroon/40"
+            />
+            <p className="text-xs text-ink/50 mt-1">
+              Available {new Date(product.rental_start_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+              {' – '}
+              {new Date(product.rental_end_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+            </p>
+
+            {availability === 'checking' && <p className="text-sm text-ink/50 mt-2">Checking that date…</p>}
+            {availability === 'available' && <p className="text-sm text-teal mt-2 font-medium">✓ Available that day</p>}
+            {availability === 'taken' && (
+              <p className="text-sm text-maroon mt-2 font-medium">Already booked that day — please pick another date.</p>
+            )}
+            {availability === 'error' && <p className="text-sm text-red-700 mt-2">Couldn't check availability, try again.</p>}
+          </div>
+        )}
+
         <button
           onClick={handleAdd}
-          disabled={isOut}
+          disabled={product.is_rental ? availability !== 'available' : isOut}
           className="mt-8 w-full sm:w-auto px-8 py-3.5 rounded-md bg-maroon text-ivory font-medium hover:bg-maroon-dark transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          {isOut ? 'Sold out' : added ? 'Added ✓' : 'Add to cart'}
+          {product.is_rental
+            ? added
+              ? 'Added ✓'
+              : 'Add rental to cart'
+            : isOut
+              ? 'Sold out'
+              : added
+                ? 'Added ✓'
+                : 'Add to cart'}
         </button>
 
-        <p className="mt-4 text-xs text-ink/50">
-          Shipping ₹{SHIPPING_FEE} · Free above ₹{FREE_SHIPPING_THRESHOLD.toLocaleString('en-IN')} · Delivered in 5–8 days
-        </p>
+        {product.is_rental ? (
+          <p className="mt-4 text-xs text-ink/50">
+            Picked up and returned in person. Please return within {product.rental_return_hours} hours — your
+            ₹{product.rental_deposit} deposit is handed back in cash once the piece is returned in good condition.
+          </p>
+        ) : (
+          <p className="mt-4 text-xs text-ink/50">
+            Shipping ₹{SHIPPING_FEE} · Free above ₹{FREE_SHIPPING_THRESHOLD.toLocaleString('en-IN')} · Delivered in 5–8 days
+          </p>
+        )}
+      </div>
       </div>
     </div>
   )

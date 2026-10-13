@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Routes, Route, useLocation } from 'react-router-dom'
+import { Routes, Route, Link, useLocation } from 'react-router-dom'
 import Navbar from './components/Navbar'
 import Footer from './components/Footer'
 import Home from './pages/Home'
@@ -13,6 +13,7 @@ import PrivacyPolicy from './pages/PrivacyPolicy'
 import AdminLogin from './pages/AdminLogin'
 import Admin from './pages/Admin'
 import CustomerDashboard from './pages/CustomerDashboard'
+import Rentals from './pages/Rentals'
 import ProtectedRoute from './components/ProtectedRoute'
 
 function ScrollToTop() {
@@ -29,10 +30,21 @@ export default function App() {
   return (
     <div className="min-h-screen flex flex-col">
       <ScrollToTop />
+
+      <div className="w-full bg-[#fceebb] text-maroon text-center py-2 px-4 text-sm font-medium border-b border-[#f5d796]">
+        <Link to="/rentals" className="block w-full hover:underline cursor-pointer">
+          🪔 Exclusive Navratri Rental: Available ONLY for Jain University students (Oct 9 – Oct 25). Click here to book!
+        </Link>
+      </div>
+
       <Navbar />
+
       <main className="flex-1">
+
+     
         <Routes>
           <Route path="/" element={<Home />} />
+          <Route path="/shop" element={<Home />} />
           <Route path="/product/:id" element={<ProductDetail />} />
           <Route path="/cart" element={<Cart />} />
           <Route path="/wishlist" element={<Wishlist />} />
@@ -44,15 +56,11 @@ export default function App() {
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route
             path="/admin"
-            element={
-              <ProtectedRoute>
-                <Admin />
-              </ProtectedRoute>
-            }
-          />
+            element={<ProtectedRoute>
+              <Admin />
+            </ProtectedRoute>} />
         </Routes>
-      </main>
-      <Footer />
+      </main><Footer /></>
     </div>
   )
 }

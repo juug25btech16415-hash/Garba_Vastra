@@ -17,47 +17,68 @@ export function CartProvider({ children }) {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(items))
   }, [items])
 
-  // A cart line is unique per product + size + color combo
-  function lineKey(productId, size, color) {
-    return `${productId}::${size}::${color}`
+  // A cart line is unique per product + size + color (+ rental date, if a rental)
+  function lineKey(productId, size, color, rentalDate) {
+    return `${productId}::${size}::${color}::${rentalDate || ''}`
   }
 
-  function addItem(product, size, color, qty = 1) {
+  function addItem(product, size, color, qty = 1, rentalInfo = null) {
     setItems((prev) => {
-      const key = lineKey(product.id, size, color)
-      const existing = prev.find((i) => lineKey(i.productId, i.size, i.color) === key)
-      if (existing) {
+      const rentalDate = rentalInfo?.rentalDate || null
+      const key = lineKey(product.id, size, color, rentalDate)
+      const existing = prev.find((i) => lineKey(i.productId, i.size, i.color, i.rentalDate) === key)
+
+      // Rentals are always a single booking for one date — never stack quantity
+      if (existing && !rentalInfo) {
         return prev.map((i) =>
-          lineKey(i.productId, i.size, i.color) === key ? { ...i, qty: i.qty + qty } : i
+          lineKey(i.productId, i.size, i.color, i.rentalDate) === key ? { ...i, qty: i.qty + qty } : i
         )
       }
-      return [
-        ...prev,
-        {
-          productId: product.id,
-          name: product.name,
-          price: product.price,
-          image: product.image_url,
-          size,
-          color,
-          qty,
-        },
-      ]
+      if (existing && rentalInfo) return prev // already booked, no-op
+
+      const baseItem = {
+        productId: product.id,
+        name: product.name,
+        image: product.image_url,
+        size,
+        color,
+        qty: rentalInfo ? 1 : qty,
+      }
+
+      if (rentalInfo) {
+        return [
+          ...prev,
+          {
+            ...baseItem,
+            isRental: true,
+            rentalDate: rentalInfo.rentalDate,
+            rentalPrice: rentalInfo.rentalPrice,
+            rentalDeposit: rentalInfo.rentalDeposit,
+            price: rentalInfo.rentalPrice + rentalInfo.rentalDeposit,
+          },
+        ]
+      }
+
+      return [...prev, { ...baseItem, price: product.price }]
     })
   }
 
-  function updateQty(productId, size, color, qty) {
+  function updateQty(productId, size, color, qty, rentalDate = null) {
     setItems((prev) =>
       qty <= 0
-        ? prev.filter((i) => lineKey(i.productId, i.size, i.color) !== lineKey(productId, size, color))
+        ? prev.filter((i) => lineKey(i.productId, i.size, i.color, i.rentalDate) !== lineKey(productId, size, color, rentalDate))
         : prev.map((i) =>
-            lineKey(i.productId, i.size, i.color) === lineKey(productId, size, color) ? { ...i, qty } : i
+            lineKey(i.productId, i.size, i.color, i.rentalDate) === lineKey(productId, size, color, rentalDate)
+              ? { ...i, qty: i.isRental ? 1 : qty } // rentals can't change quantity
+              : i
           )
     )
   }
 
-  function removeItem(productId, size, color) {
-    setItems((prev) => prev.filter((i) => lineKey(i.productId, i.size, i.color) !== lineKey(productId, size, color)))
+  function removeItem(productId, size, color, rentalDate = null) {
+    setItems((prev) =>
+      prev.filter((i) => lineKey(i.productId, i.size, i.color, i.rentalDate) !== lineKey(productId, size, color, rentalDate))
+    )
   }
 
   function clearCart() {

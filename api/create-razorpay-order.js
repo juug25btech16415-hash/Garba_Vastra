@@ -80,33 +80,82 @@ export default async function handler(req, res) {
     // this is what stops someone from editing the price in devtools before paying.
     let subtotal = 0
     const verifiedItems = []
+    let orderRentalDate = null
+
     for (const item of items) {
       const { data: product, error } = await supabaseAdmin
         .from('products')
-        .select('id, name, price, stock')
+        .select('*')
         .eq('id', item.productId)
         .single()
 
       if (error || !product) return res.status(400).json({ error: `Product not found: ${item.name}` })
-      if (product.stock < item.qty) {
-        return res.status(400).json({ error: `Only ${product.stock} left of ${product.name} — please update your cart.` })
-      }
 
-      subtotal += product.price * item.qty
-      verifiedItems.push({
-        productId: product.id,
-        name: product.name,
-        price: product.price,
-        size: item.size,
-        color: item.color,
-        qty: item.qty,
-      })
+      if (item.isRental || product.is_rental) {
+        if (!product.is_rental) {
+          return res.status(400).json({ error: `${product.name} is not available for rental.` })
+        }
+        const date = item.rentalDate
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          return res.status(400).json({ error: 'Please choose a valid rental date.' })
+        }
+        if (date < product.rental_start_date || date > product.rental_end_date) {
+          return res.status(400).json({
+            error: `Rental dates are only available between ${product.rental_start_date} and ${product.rental_end_date}.`,
+          })
+        }
+
+        // Re-check availability server-side too — the client-side check is just
+        // a UX convenience, this is the real guard against double-booking.
+        const { data: conflict } = await supabaseAdmin
+          .from('orders')
+          .select('id')
+          .eq('rental_date', date)
+          .eq('payment_status', 'paid')
+          .limit(1)
+          .maybeSingle()
+        if (conflict) {
+          return res.status(400).json({ error: `That date is already booked — please choose another.` })
+        }
+
+        const rentalPrice = Number(product.rental_price) || 0
+        const rentalDeposit = Number(product.rental_deposit) || 0
+        subtotal += rentalPrice + rentalDeposit
+        orderRentalDate = date
+        verifiedItems.push({
+          productId: product.id,
+          name: product.name,
+          size: item.size,
+          color: item.color,
+          qty: 1,
+          isRental: true,
+          rentalDate: date,
+          rentalPrice,
+          rentalDeposit,
+          price: rentalPrice + rentalDeposit,
+        })
+      } else {
+        if (product.stock < item.qty) {
+          return res.status(400).json({ error: `Only ${product.stock} left of ${product.name} — please update your cart.` })
+        }
+        subtotal += product.price * item.qty
+        verifiedItems.push({
+          productId: product.id,
+          name: product.name,
+          price: product.price,
+          size: item.size,
+          color: item.color,
+          qty: item.qty,
+        })
+      }
     }
 
     // Add shipping the same way the checkout page displays it — computed once,
     // server-side, so the amount actually charged always matches what the
-    // customer saw on screen.
-    const shippingFee = calcShipping(subtotal)
+    // customer saw on screen. Rental-only orders are picked up in person, so
+    // no shipping applies.
+    const isRentalOnlyOrder = verifiedItems.length > 0 && verifiedItems.every((i) => i.isRental)
+    const shippingFee = isRentalOnlyOrder ? 0 : calcShipping(subtotal)
     const total = subtotal + shippingFee
 
     // Create the order row first, in "pending" state
@@ -123,6 +172,7 @@ export default async function handler(req, res) {
         total,
         payment_status: 'pending',
         order_status: 'placed',
+        rental_date: orderRentalDate,
       })
       .select()
       .single()
